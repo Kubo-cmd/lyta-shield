@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """LYTA Shield fuzz + simulation harness as a pytest test."""
+
 import base64
 import random
 import string
 import sys
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from rules_engine import check
@@ -188,8 +187,5 @@ def test_simulation_fuzz():
             print(f"    reasons: {reasons}")
 
     assert result["false_positives"] == 0, f"{result['false_positives']} false positives"
-    # False negatives are reported but not asserted to zero because the rules engine
-    # intentionally prioritizes low false-positive rate over catching every adversarial
-    # variant. They should be added to rules.json over time.
     if result["false_negatives"] > 0:
         print(f"[WARN] {result['false_negatives']} false negatives (adversarial samples not caught)")

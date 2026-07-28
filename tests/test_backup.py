@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for backup signing, verification, and self-heal path."""
+
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -42,18 +42,15 @@ def test_verify_backup_passes(backup_result):
 
 
 def test_tamper_detected_and_self_heal():
-    # Pick a small script to tamper
     target = LYTA / "scripts" / "backup-sign.py"
     original = target.read_text()
     tampered = original + "\n# TAMPERED\n"
     target.write_text(tampered)
     try:
         result = run_cli("self-heal", "--file", str(target))
-        # Self-heal should either restore or report a failure
         assert result.returncode in (0, 1), result.stderr
     finally:
-        # Restore from backup if possible
-        result = run_cli("restore-from-backup", "--file", str(target))
+        run_cli("restore-from-backup", "--file", str(target))
         target.write_text(original)
 
 

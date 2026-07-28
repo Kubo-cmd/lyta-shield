@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Check backup signing key health."""
+
 import sys
 from pathlib import Path
 
-from nacl.signing import SigningKey
 from nacl.exceptions import CryptoError
+from nacl.signing import SigningKey
 
 LYTA_DIR = Path(__file__).resolve().parent.parent
 PRIV = LYTA_DIR / "var" / "keys" / "backup-sign.nacl"
 PUB = LYTA_DIR / "var" / "keys" / "backup-sign.nacl.pub"
+
 
 def main():
     errors = []
@@ -41,6 +43,7 @@ def main():
     print(f"  private: {PRIV}")
     print(f"  public:  {PUB}")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

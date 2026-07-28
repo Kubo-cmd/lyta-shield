@@ -2,16 +2,17 @@
 """Export LYTA Shield guard events as Prometheus metrics.
 
 Usage:
-    python3 scripts/export-metrics.py [port]
+    python3 scripts/export-metrics.py [event_log] [port]
 
+Default event log: /var/hermes-guard-events.jsonl
 Default port: 9101
 """
+
 import json
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
-
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 LYTA_DIR = Path(__file__).resolve().parent.parent
 EVENT_LOG = Path(sys.argv[1]) if len(sys.argv) > 1 else LYTA_DIR / "var" / "hermes-guard-events.jsonl"

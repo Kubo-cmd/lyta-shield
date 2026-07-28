@@ -1,4 +1,3 @@
-import base64
 #!/usr/bin/env python3
 """Rotate the Ed25519 backup signing keypair.
 
@@ -10,9 +9,10 @@ Saves:
     var/keys/backup-sign.nacl.pub
 """
 
+import base64
 from pathlib import Path
+
 from nacl.signing import SigningKey
-from nacl.encoding import Base64Encoder
 
 LYTA_DIR = Path(__file__).resolve().parent.parent
 KEY = LYTA_DIR / "var" / "keys" / "backup-sign.nacl"
@@ -24,6 +24,6 @@ verify_key = signing_key.verify_key
 KEY.write_bytes(signing_key.encode())
 PUB.write_bytes(verify_key.encode())
 
-print(f"[OK] rotated backup signing key")
+print("[OK] rotated backup signing key")
 print(f"[INFO] public key: {base64.b64encode(verify_key.encode()).decode()}")
 print(f"[INFO] files: {KEY}, {PUB}")
