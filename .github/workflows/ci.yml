@@ -26,8 +26,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest pynacl
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pynacl
 
       - name: Run rules engine tests
         run: python3 -m pytest tests/test_rules.py tests/test_bypass.py -v
@@ -49,8 +49,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest pynacl
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pynacl
 
       - name: Generate backup signing keys
         run: |
