@@ -70,7 +70,7 @@ def guard_text(text: str) -> dict:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: hermes_guard.py <text> | --file <path> | --json <json>", file=sys.stderr)
+        print("Usage: hermes_guard.py <text> | --file <path> | --json <json> | --stdin", file=sys.stderr)
         return 1
 
     arg = sys.argv[1]
@@ -79,6 +79,8 @@ def main() -> int:
     elif arg == "--json":
         obj = json.loads(sys.argv[2])
         text = obj.get("content", "") if isinstance(obj, dict) else obj
+    elif arg == "--stdin":
+        text = sys.stdin.read()
     else:
         text = " ".join(sys.argv[1:])
 
