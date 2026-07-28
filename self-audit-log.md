@@ -41,6 +41,14 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** Event log path is `var/hermes-guard-events.jsonl`. Cron job ID `aadbc5bd703c`. Health: HEALTHY until a DANGEROUS event appears.
 - **Commit:** pending
 
+## 2026-07-28 (circuit breaker test)
+
+- **Method:** ran `hermes chat -q` with an adversarial prompt three times in a row, then tried a safe chat, then ran `lyta-shield reset`
+- **Result:** first three calls were logged as DANGEROUS; the third call opened the circuit breaker; subsequent `hermes chat` invocations were blocked with the circuit breaker message; `lyta-shield reset` cleared the breaker and chat resumed
+- **Verdict:** fail-deadly pattern works: machine stops talking when guard confidence is lost
+- **Notes:** Circuit breaker marker is `var/circuit-breaker-open`. Reset rotates the event log.
+- **Commit:** pending
+
 ## How to reproduce
 
 ```bash
