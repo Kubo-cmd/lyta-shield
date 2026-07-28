@@ -54,9 +54,23 @@ We will list responsible disclosures and false-positive reports in this section.
 
 - *No acknowledgments yet — be the first.*
 
+### Bypass bounty
+
+If you can make LYTA Shield output a DANGEROUS/SUSPICIOUS classification that should be SAFE, or allow a SAFE classification for a clearly malicious payload, report it:
+
+1. Open a GitHub issue with the label `bypass` or `false-positive`.
+2. Include the exact text you tested.
+3. Include the command you ran: `python3 integrations/hermes_guard.py --file your-text.txt`.
+4. Include the expected classification.
+
+The first verified bypass of the Hermes output guard will receive a public acknowledgment in the README and a dedicated test case named after the reporter.
+
+We do not pay cash bounties. Acknowledgment + a named regression test is the reward.
+
 ## False positives and false negatives
 
-If LYTA Shield blocks something that is actually safe, or misses something dangerous:
+If LYTA Shield blocks something that should be safe, or misses something malicious, report it as a GitHub issue using the template below:
+
 
 1. Open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or a public issue.
 2. Include the exact input text and the rule IDs returned by `hermes_guard.py`.
