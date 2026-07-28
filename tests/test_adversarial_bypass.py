@@ -135,3 +135,9 @@ def run() -> int:
 
 if __name__ == "__main__":
     sys.exit(run())
+
+
+
+def test_adversarial_bypass():
+    """Pytest wrapper for the adversarial bypass challenges."""
+    assert run() == 0
