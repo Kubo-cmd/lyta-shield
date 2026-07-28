@@ -25,6 +25,13 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** The guard correctly classified the malicious paste-jacking instruction as it appeared in the terminal output. This proves the wrapper inspects actual assistant/user-visible output in a live Hermes session.
 - **Commit:** `b5e2f145b611f8228801c3406f1878ebde1770b6`
 
+## 2026-07-28 (strict mode activation)
+
+- **Method:** patched `.zshrc` to set `LYTA_SHIELD_STRICT=1` and block `hermes` if the guard is missing
+- **Result:** `hermes` now fails loudly instead of silently falling back to unguarded execution
+- **Notes:** CI also verifies the wrapper, CLI, and doctor are executable and that the doctor passes. Prevents the common failure mode where a wrapper degrades to an unguarded path.
+- **Commit:** pending
+
 ## How to reproduce
 
 ```bash
