@@ -39,7 +39,7 @@ Public log of daily self-audits over the latest Hermes session.
 - **Result:** every Hermes invocation is now logged with timestamp, command, verdict, and reasons; `status` shows last 5 events and health; cron alerts on ≥3 DANGEROUS events in last hour
 - **Verdict:** guard can now be audited without trusting its own terminal output
 - **Notes:** Event log path is `var/hermes-guard-events.jsonl`. Cron job ID `aadbc5bd703c`. Health: HEALTHY until a DANGEROUS event appears.
-- **Commit:** pending
+- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
 
 ## 2026-07-28 (circuit breaker test)
 
@@ -47,7 +47,7 @@ Public log of daily self-audits over the latest Hermes session.
 - **Result:** first three calls were logged as DANGEROUS; the third call opened the circuit breaker; subsequent `hermes chat` invocations were blocked with the circuit breaker message; `lyta-shield reset` cleared the breaker and chat resumed
 - **Verdict:** fail-deadly pattern works: machine stops talking when guard confidence is lost
 - **Notes:** Circuit breaker marker is `var/circuit-breaker-open`. Reset rotates the event log.
-- **Commit:** pending
+- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
 
 ## 2026-07-28 (integrity monitor test)
 
@@ -60,7 +60,7 @@ Public log of daily self-audits over the latest Hermes session.
   - Final doctor reported HEALTHY and integrity verified
 - **Verdict:** self-healing integrity pattern works
 - **Notes:** Cron `lyta-shield-doctor-heal` runs every 10 minutes to auto-detect and auto-repair tampering
-- **Commit:** pending
+- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
 
 ## 2026-07-28 (trust anchor test)
 
@@ -75,7 +75,7 @@ Public log of daily self-audits over the latest Hermes session.
   - final `doctor` reported HEALTHY with integrity verified
 - **Verdict:** chain-of-trust pattern works
 - **Notes:** Token loader added to `scripts/load-github-token.py`; push script updated to use it; token no longer embedded in source
-- **Commit:** pending
+- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
 
 ## How to reproduce
 
