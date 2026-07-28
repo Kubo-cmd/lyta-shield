@@ -4,3 +4,10 @@ __pycache__/
 *.pyo
 *.egg-info/
 .venv/
+var/keys/
+var/backups/
+var/integrity-baseline.json
+var/trust-anchor-pin.json
+var/hermes-guard-events.jsonl
+var/hermes-guard-events.jsonl.*
+.pytest_cache/
