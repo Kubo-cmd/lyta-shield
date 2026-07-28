@@ -33,6 +33,14 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** Added `lyta-shield restore` command to re-install the wrapper function into `~/.zshrc` if damaged.
 - **Commit:** `e025a823051c69228ad3515bddec86c31afe77d3`
 
+## 2026-07-28 (telemetry system)
+
+- **Method:** added JSONL event logging to `hermes-wrapper.sh`, added `lyta-shield status`, created hourly `lyta-shield-danger-watch` cron
+- **Result:** every Hermes invocation is now logged with timestamp, command, verdict, and reasons; `status` shows last 5 events and health; cron alerts on ≥3 DANGEROUS events in last hour
+- **Verdict:** guard can now be audited without trusting its own terminal output
+- **Notes:** Event log path is `var/hermes-guard-events.jsonl`. Cron job ID `aadbc5bd703c`. Health: HEALTHY until a DANGEROUS event appears.
+- **Commit:** pending
+
 ## How to reproduce
 
 ```bash

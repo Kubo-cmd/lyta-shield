@@ -67,6 +67,18 @@ The first verified bypass of the Hermes output guard will receive a public ackno
 
 We do not pay cash bounties. Acknowledgment + a named regression test is the reward.
 
+## Guard watches the watcher
+
+The wrapper itself is a privileged component. If it were silently tampered with or misconfigured, the whole defense could be bypassed. LYTA Shield mitigates this by:
+
+1. **Logging every invocation** to `var/hermes-guard-events.jsonl`, including the wrapped command, exit code, guard verdict, and triggered rules.
+2. **Exposing status** via `lyta-shield status` so the user can see the last events and overall health without trusting the wrapper's terminal output.
+3. **Hourly cron surveillance** (`lyta-shield-danger-watch`) checks the log for DANGEROUS verdicts and alerts if the threshold is exceeded.
+4. **Self-healing** via `lyta-shield restore` if the wrapper or `.zshrc` function is damaged.
+5. **CI guarantee** that the wrapper, CLI, and doctor are present and executable.
+
+This is the **fail-closed-then-heal** pattern: if the guard fails, the command is blocked; if the wrapper is damaged, it can be restored; if the audit log is tampered with, the hourly watcher reports it.
+
 ## Strict mode
 
 LYTA Shield follows a **no silent fallback** policy. If the guard is missing or broken, the `hermes` wrapper blocks execution in strict mode (`LYTA_SHIELD_STRICT=1`). This prevents a defense-in-depth wrapper from quietly degrading to an unguarded path.
