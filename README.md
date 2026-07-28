@@ -90,19 +90,25 @@ The userscript auto-activates on all websites. It will:
 ```
 lyta-shield/
 ├── src/
-│   ├── lyta_shield_rules.py    # shared rule engine
+│   ├── rules.json              # editable rules: blocked, suspicious, safe_installers
+│   ├── rules_engine.py         # shared classification engine
 │   ├── lyta_shield.py          # terminal CLI
 │   └── lyta_shield_hook.sh     # zsh / bash shell hook
 ├── extensions/
 │   ├── browser/                # Tampermonkey userscript
 │   └── ai-chat/                # AI chat input guard (part of userscript)
 ├── tests/
+├── docs/
+│   ├── index.html              # GitHub Pages landing page
+│   └── pipeline.svg
 ├── install.sh
 ├── README.md
 └── LICENSE
 ```
 
-All surfaces share the same rule engine. Terminal uses the Python backend. Browser uses a mirror of the rules in JavaScript.
+A single JSON rule engine powers the terminal CLI, the browser userscript, and AI chat input guards. Add or modify rules without touching code.
+
+![pipeline](docs/pipeline.svg)
 
 ---
 
@@ -122,6 +128,19 @@ Simulation: 1,000,000 calls, 100% accuracy, 0 false positives, 0 false negatives
 
 - `zsh` (via `preexec` hook)
 - `bash` (via `DEBUG` trap)
+
+---
+
+## Citation
+
+```bibtex
+@software{lytashield2026,
+  title = {LYTA Shield: Paste-Jacking and AI Chat Defense},
+  author = {LYTA.EXE},
+  year = {2026},
+  url = {https://github.com/Kubo-cmd/lyta-shield}
+}
+```
 
 ---
 

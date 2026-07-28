@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LYTA Shield — terminal paste-jacking / social-engineering defense v1.0.0
+LYTA Shield — Terminal guard v1.1.0
 
 Inspects shell commands before execution and blocks or confirms common
 paste-jacking payloads.
@@ -16,13 +16,14 @@ Repository: https://github.com/Kubo-cmd/lyta-shield
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from lyta_shield_rules import check, Verdict
+from rules_engine import Verdict, check
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 def scan_history(path: str) -> List[Tuple[int, str, Verdict]]:
@@ -41,13 +42,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="LYTA Shield — terminal paste-jacking defense")
     parser.add_argument("--check", help="command string to classify")
     parser.add_argument("--batch", help="history file to scan")
+    parser.add_argument("--rules", help="path to rules.json")
     parser.add_argument("--json", action="store_true", help="output JSON")
     args = parser.parse_args()
 
+    rules_path = Path(args.rules) if args.rules else None
     if args.check:
-        v = check(args.check)
+        v = check(args.check, rules_path=rules_path)
         if args.json:
-            import json
             print(json.dumps({"action": v.action, "code": v.code, "reasons": v.reasons, "matched": v.matched}))
         else:
             print(v.report())
@@ -56,7 +58,6 @@ def main() -> int:
     if args.batch:
         results = scan_history(args.batch)
         if args.json:
-            import json
             out = [{"line": ln, "command": cmd, "action": v.action, "reasons": v.reasons, "matched": v.matched} for ln, cmd, v in results]
             print(json.dumps(out))
         else:

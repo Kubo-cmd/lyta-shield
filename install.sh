@@ -10,7 +10,7 @@ CONFIG_DIR="${HOME}/.config/lyta-shield"
 echo "[LYTA Shield] Installing to $CONFIG_DIR..."
 mkdir -p "$CONFIG_DIR"
 
-for file in src/lyta_shield_rules.py src/lyta_shield.py src/lyta_shield_hook.sh; do
+for file in src/rules.json src/rules_engine.py src/lyta_shield.py src/lyta_shield_hook.sh; do
     if [[ -f "${file}" ]]; then
         cp "${file}" "$CONFIG_DIR/"
     else
