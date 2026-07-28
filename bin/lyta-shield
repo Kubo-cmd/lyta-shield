@@ -426,6 +426,10 @@ PY
         echo "LYTA Shield wrapper restored in $ZSHRC"
         echo "Run 'source $ZSHRC' to apply."
         ;;
+    key-health)
+        python3 "$LYTA_DIR/scripts/backup-key-health.py"
+        exit $?
+        ;;
     help|--help|-h|"")
         cat <<'EOF'
 LYTA Shield CLI
@@ -445,6 +449,7 @@ Commands:
   restore                re-install the Hermes wrapper into ~/.zshrc
   backup                 create a signed backup of the lyta-shield tree
   verify-backup [manifest] verify the latest (or specified) signed backup
+  key-health             check backup signing keypair health
   lock [reason]          pin trust anchor to freeze baseline changes
   unlock                 remove trust anchor pin
   incident               show last tamper, breaker trip, or DANGEROUS event
@@ -460,6 +465,7 @@ Examples:
   lyta-shield restore-baseline
   lyta-shield backup
   lyta-shield verify-backup
+  lyta-shield key-health
   lyta-shield restore
   lyta-shield doctor
   lyta-shield lock "before release v1.0"
