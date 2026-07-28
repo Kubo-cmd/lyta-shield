@@ -49,6 +49,19 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** Circuit breaker marker is `var/circuit-breaker-open`. Reset rotates the event log.
 - **Commit:** pending
 
+## 2026-07-28 (integrity monitor test)
+
+- **Method:** ran `lyta-shield restore-baseline`, then `lyta-shield doctor`, then appended a comment to `integrations/hermes-wrapper.sh`, then `doctor` again, then `lyta-shield self-heal`, then `doctor` again
+- **Result:**
+  - Baseline stored SHA-256 hashes for guard, wrapper, and CLI
+  - Initial doctor reported HEALTHY
+  - After tamper, doctor reported `[TAMPERED] integrations/hermes-wrapper.sh` and `[FAIL] integrity check failed`
+  - `self-heal` re-downloaded the wrapper from `https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/integrations/hermes-wrapper.sh` and restored it
+  - Final doctor reported HEALTHY and integrity verified
+- **Verdict:** self-healing integrity pattern works
+- **Notes:** Cron `lyta-shield-doctor-heal` runs every 10 minutes to auto-detect and auto-repair tampering
+- **Commit:** pending
+
 ## How to reproduce
 
 ```bash
