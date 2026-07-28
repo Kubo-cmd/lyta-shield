@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -62,7 +62,15 @@ class RuleSet:
 
     def _normalize(self, text: str) -> str:
         text = unicodedata.normalize("NFKC", text)
+        # Strip ANSI escape sequences
+        text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+        # Strip other ANSI / OSC sequences
+        text = re.sub(r"\x1b][^\x07\x1b]*(?:\x07|\x1b\\)", "", text)
         text = re.sub(r"[\u200b\u200c\u200d\u200e\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]", "", text)
+        # Resolve backspace sequences: char + backspace = delete previous char
+        while "\x08" in text:
+            text = re.sub(r"[^\x08]\x08", "", text)
+            text = text.lstrip("\x08")
         text = re.sub(r"\s+", " ", text).strip()
         return text
 
@@ -76,15 +84,7 @@ class RuleSet:
         except Exception:
             return ""
 
-    def check(self, text: str) -> Verdict:
-        text = self._normalize(text)
-        if not text:
-            return Verdict("SAFE", 0)
-
-        spam, spam_reason = self._is_bounty_spam(text)
-        if spam:
-            return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
-
+    def _run_blocked_checks(self, text: str) -> Optional[Verdict]:
         for pat, reason in self.blocked:
             m = re.search(pat, text, re.IGNORECASE)
             if m:
@@ -95,16 +95,30 @@ class RuleSet:
                         matched=m.group(0)
                     )
                 return Verdict("DANGEROUS", 2, reasons=[reason], matched=m.group(0))
+        return None
+
+    def check(self, text: str) -> Verdict:
+        text = self._normalize(text)
+        if not text:
+            return Verdict("SAFE", 0)
+
+        spam, spam_reason = self._is_bounty_spam(text)
+        if spam:
+            return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
+
+        result = self._run_blocked_checks(text)
+        if result:
+            return result
 
         decoded = self._try_decode_base64(text)
         if decoded:
-            for pat, reason in self.blocked:
-                if re.search(pat, decoded, re.IGNORECASE):
-                    return Verdict(
-                        "DANGEROUS", 2,
-                        reasons=[f"{reason} (inside decoded payload)"],
-                        matched=decoded[:80]
-                    )
+            result = self._run_blocked_checks(decoded)
+            if result:
+                return Verdict(
+                    "DANGEROUS", 2,
+                    reasons=[f"{result.reasons[0]} (inside decoded payload)"],
+                    matched=result.matched
+                )
             if re.search(r"\b(curl|wget|bash|sh|exec|eval)\b", decoded, re.IGNORECASE):
                 return Verdict(
                     "DANGEROUS", 2,
@@ -123,6 +137,44 @@ class RuleSet:
             return Verdict("SAFE", 0, reasons=["known_safe_installer"])
 
         return Verdict("SAFE", 0)
+
+
+class StreamChecker:
+    """Stateful checker for streaming output that catches cross-chunk payloads."""
+
+    def __init__(self, rules_path: Optional[Path] = None, lookback: int = 200):
+        self.engine = RuleSet(rules_path)
+        self.buffer: str = ""
+        self.lookback = lookback
+
+    def feed(self, chunk: str) -> Verdict:
+        chunk = self.engine._normalize(chunk)
+        if not chunk:
+            return Verdict("SAFE", 0)
+
+        # Check the chunk itself
+        result = self.engine.check(chunk)
+        if result.code >= 2:
+            return result
+
+        # Check combined with recent buffer (whitespace-collapsed)
+        combined = self.engine._normalize(self.buffer + chunk)
+        result = self.engine.check(combined)
+        if result.code >= 2:
+            return result
+
+        combined_spaced = self.engine._normalize(self.buffer + " " + chunk)
+        result = self.engine.check(combined_spaced)
+        if result.code >= 2:
+            return result
+
+        # Update buffer: keep recent normalized text
+        self.buffer = self.engine._normalize((self.buffer + " " + chunk)[-self.lookback:])
+
+        return Verdict("SAFE", 0)
+
+    def reset(self) -> None:
+        self.buffer = ""
 
 
 def check(text: str, rules_path: Optional[Path] = None) -> Verdict:

