@@ -9,6 +9,13 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** Initial audit after rule refinement for IRC/underworld false positives. Defensive discussion about attacks no longer triggers rules.
 - **Commit:** `f542143b1ff2024b1048e3e01e9211792b58f012`
 
+## 2026-07-28 (production activation)
+
+- **Method:** wrapped `hermes` binary via `hermes-wrapper.sh` in `.zshrc`
+- **Result:** `hermes --version` and `hermes chat` still work; guard is transparent
+- **Notes:** Added `LYTA_SHIELD_WRAPPER` to the existing `hermes()` function in `.zshrc`. Doctor script confirms health. First wrapped command: `hermes --version` returned v0.19.0 with no guard warnings.
+- **Commit:** `dc5947bed34880f8bdfd3f9de459a8e394c43e2e`
+
 ## How to reproduce
 
 ```bash
