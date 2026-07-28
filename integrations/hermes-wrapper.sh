@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-LYTA_DIR="${LYTA_DIR:-/Users/test/Octra/lyta-shield}"
+LYTA_DIR="${LYTA_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 GUARD="${LYTA_DIR}/integrations/hermes_guard.py"
 EVENT_LOG="${LYTA_EVENT_LOG:-${LYTA_DIR}/var/hermes-guard-events.jsonl}"
 CIRCUIT_MARKER="${LYTA_DIR}/var/circuit-breaker-open"

@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-LYTA_DIR="${LYTA_DIR:-/Users/test/Octra/lyta-shield}"
+LYTA_DIR="${LYTA_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 GUARD="${LYTA_DIR}/integrations/hermes_guard.py"
 CLI="${LYTA_DIR}/bin/lyta-shield"
 WRAPPER="${LYTA_DIR}/integrations/hermes-wrapper.sh"
