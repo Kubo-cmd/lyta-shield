@@ -77,6 +77,14 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** Token loader added to `scripts/load-github-token.py`; push script updated to use it; token no longer embedded in source
 - **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
 
+## 2026-07-28 (deploy key setup for push after token rotation)
+
+- **Method:** generated ed25519 deploy key at `~/.ssh/id_lyta_shield`, updated `~/.ssh/config` with `github.com-lyta-shield` alias, set remote to `git@github.com-lyta-shield:Kubo-cmd/lyta-shield.git`, created `scripts/setup-deploy-key.sh`
+- **Result:** SSH host key accepted, push still blocked because the public key is not yet registered in the GitHub repo as a deploy key
+- **Next step:** add the public key (in `var/deploy-key.pub`) to https://github.com/Kubo-cmd/lyta-shield/settings/keys/new with write access, then run `git push origin main`
+- **Notes:** The old fine-grained PAT used previously was revoked; the chain-of-trust implementation is complete locally and only awaiting the deploy key registration to be pushed to remote
+- **Commit:** 49e6e19 (local, not yet pushed)
+
 ## How to reproduce
 
 ```bash
