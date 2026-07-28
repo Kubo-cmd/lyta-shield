@@ -120,7 +120,9 @@ python3 tests/test_lyta_shield_rules.py
 python3 tests/lyta_shield_simulate.py
 ```
 
-Simulation: 1,000,000 calls, 100% accuracy, 0 false positives, 0 false negatives.
+**Simulation:** 1,000,000 generated calls against a synthetic fuzz harness. This is a regression smoke test, not a real-world security guarantee. The 100% score means the current rules cover the templates we generate; it does not mean LYTA Shield has "solved" paste-jacking or that real attackers cannot bypass it.
+
+Real validation requires red-team review, bug bounty, and production use.
 
 ---
 
