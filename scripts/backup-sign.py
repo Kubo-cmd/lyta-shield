@@ -17,6 +17,7 @@ Keys:
 import base64
 import hashlib
 import json
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -36,9 +37,9 @@ def main():
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     if not KEY.exists():
-        print(f"[FAIL] signing key not found: {KEY}", file=sys.stderr)
-        print("Run: python3 scripts/rotate-backup-key.py", file=sys.stderr)
-        sys.exit(1)
+        print(f"[WARN] signing key not found: {KEY}", file=sys.stderr)
+        print("[INFO] generating new Ed25519 keypair automatically", file=sys.stderr)
+        subprocess.run([sys.executable, str(LYTA_DIR / "scripts" / "generate-backup-key.py")], check=True)
 
     signing_key = SigningKey(KEY.read_bytes())
     verify_key = signing_key.verify_key
