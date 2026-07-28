@@ -17,17 +17,17 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run core rules tests
         run: python3 -m pytest tests/test_rules.py tests/test_bypass.py -v
@@ -40,17 +40,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run rules tests
         run: python3 -m pytest tests/test_lyta_shield_rules.py -v
@@ -75,17 +75,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run simulation fuzz
         run: python3 -m pytest tests/test_simulation.py -v
@@ -95,17 +95,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run performance benchmark
         run: python3 -m pytest tests/test_performance.py -v
@@ -116,17 +116,17 @@ jobs:
     needs: [rules, adversarial]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest pynacl
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt pynacl
 
       - name: Generate backup signing keys
         run: |
@@ -154,10 +154,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 

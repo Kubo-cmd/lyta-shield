@@ -1,0 +1,4 @@
+# LYTA Shield development dependencies
+pytest>=7.0.0
+ruff>=0.4.0
+pynacl>=1.5.0

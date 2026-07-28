@@ -25,7 +25,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from nacl.signing import SigningKey
-from nacl.encoding import Base64Encoder
 
 LYTA_DIR = Path(__file__).resolve().parent.parent
 KEY = LYTA_DIR / "var" / "keys" / "backup-sign.nacl"
