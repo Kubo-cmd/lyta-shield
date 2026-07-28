@@ -50,6 +50,17 @@ We will not take legal action against anyone who reports security issues or subm
 
 ## Acknowledgments
 
-We will list responsible disclosures in this section.
+We will list responsible disclosures and false-positive reports in this section.
 
 - *No acknowledgments yet — be the first.*
+
+## False positives and false negatives
+
+If LYTA Shield blocks something that is actually safe, or misses something dangerous:
+
+1. Open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or a public issue.
+2. Include the exact input text and the rule IDs returned by `hermes_guard.py`.
+3. Run `python3 integrations/hermes_guard.py --file your-message.txt` and paste the JSON output.
+4. Explain why you think the classification is wrong.
+
+Good reports help us tune the rules without breaking legitimate use.
