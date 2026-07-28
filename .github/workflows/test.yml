@@ -17,7 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
       - name: Run unit tests
-        run: python3 tests/test_lyta_shield_rules.py
-      - name: Run simulation
-        run: python3 tests/lyta_shield_simulate.py
+        run: python3 -m pytest tests/test_lyta_shield_rules.py tests/test_adversarial_bypass.py -v
