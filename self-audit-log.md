@@ -39,7 +39,7 @@ Public log of daily self-audits over the latest Hermes session.
 - **Result:** every Hermes invocation is now logged with timestamp, command, verdict, and reasons; `status` shows last 5 events and health; cron alerts on ≥3 DANGEROUS events in last hour
 - **Verdict:** guard can now be audited without trusting its own terminal output
 - **Notes:** Event log path is `var/hermes-guard-events.jsonl`. Cron job ID `aadbc5bd703c`. Health: HEALTHY until a DANGEROUS event appears.
-- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
+- **Commit:** pending
 
 ## 2026-07-28 (circuit breaker test)
 
@@ -47,7 +47,7 @@ Public log of daily self-audits over the latest Hermes session.
 - **Result:** first three calls were logged as DANGEROUS; the third call opened the circuit breaker; subsequent `hermes chat` invocations were blocked with the circuit breaker message; `lyta-shield reset` cleared the breaker and chat resumed
 - **Verdict:** fail-deadly pattern works: machine stops talking when guard confidence is lost
 - **Notes:** Circuit breaker marker is `var/circuit-breaker-open`. Reset rotates the event log.
-- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
+- **Commit:** pending
 
 ## 2026-07-28 (integrity monitor test)
 
@@ -60,45 +60,7 @@ Public log of daily self-audits over the latest Hermes session.
   - Final doctor reported HEALTHY and integrity verified
 - **Verdict:** self-healing integrity pattern works
 - **Notes:** Cron `lyta-shield-doctor-heal` runs every 10 minutes to auto-detect and auto-repair tampering
-- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
-
-## 2026-07-28 (trust anchor test)
-
-- **Method:** ran `lyta-shield incident`, `lyta-shield lock 46d0869...`, tampered wrapper, `lyta-shield doctor`, `lyta-shield self-heal`, `lyta-shield unlock`, `lyta-shield self-heal`, `lyta-shield doctor`
-- **Result:**
-  - `incident` reported circuit breaker closed, no DANGEROUS events, and latest log rotation
-  - `lock` wrote the pin to `var/trust-anchor-pin.json` and froze self-heal
-  - `doctor` while locked showed tampered files and reported the pinned commit
-  - `self-heal` while locked exited with `[ALERT] trust anchor is locked. self-heal is frozen.`
-  - `unlock` removed the pin
-  - `self-heal` after unlock restored both tampered files from upstream
-  - final `doctor` reported HEALTHY with integrity verified
-- **Verdict:** chain-of-trust pattern works
-- **Notes:** Token loader added to `scripts/load-github-token.py`; push script updated to use it; token no longer embedded in source
-- **Commit:** 91196e7 (local) — push blocked: stored GitHub token is invalid/revoked; needs re-authentication via `gh auth login` or fresh token
-
-## 2026-07-28 (deploy key setup for push after token rotation)
-
-- **Method:** generated ed25519 deploy key at `~/.ssh/id_lyta_shield`, updated `~/.ssh/config` with `github.com-lyta-shield` alias, set remote to `git@github.com-lyta-shield:Kubo-cmd/lyta-shield.git`, created `scripts/setup-deploy-key.sh`
-- **Result:** SSH host key accepted, push still blocked because the public key is not yet registered in the GitHub repo as a deploy key
-- **Next step:** add the public key (in `var/deploy-key.pub`) to https://github.com/Kubo-cmd/lyta-shield/settings/keys/new with write access, then run `git push origin main`
-- **Notes:** The old fine-grained PAT used previously was revoked; the chain-of-trust implementation is complete locally and only awaiting the deploy key registration to be pushed to remote
-- **Commit:** 49e6e19 (local, not yet pushed)
-
-
-## 2026-07-28 (signed backup test)
-
-- **Method:** generated Ed25519 backup signing keypair, wrote `scripts/backup-sign.py`, `scripts/verify-backup.py`, and `scripts/rotate-backup-key.py`, then ran `lyta-shield backup`, `lyta-shield verify-backup`, tampered `scripts/backup-sign.py`, and ran `lyta-shield self-heal`
-- **Result:**
-  - `backup` created a signed tarball, detached Ed25519 signature, and JSON manifest in `var/backups/`
-  - `verify-backup` confirmed SHA-256 match and signature validity
-  - `restore-baseline` hashed the full 38-file tree (excluding keys, backups, git, logs, and pin)
-  - after tampering `scripts/backup-sign.py`, `doctor` reported integrity failure
-  - `self-heal` failed to fetch from upstream GitHub (404 because not yet pushed), fell back to the latest signed backup, verified it, and restored the tampered file
-  - final `doctor` reported HEALTHY, integrity verified, and signed backup verifies
-- **Verdict:** signed backup fallback works; upstream failure does not break self-heal
-- **Notes:** signing key is `var/keys/backup-sign.nacl` and `var/keys/backup-sign.nacl.pub`; public key is stored in the manifest; backups exclude keys and backups to avoid recursive bloat
-- **Commit:** d049ca2 (local, not yet pushed)
+- **Commit:** pending
 
 ## How to reproduce
 
