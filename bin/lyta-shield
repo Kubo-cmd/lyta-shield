@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-LYTA_DIR="${LYTA_DIR:-/Users/test/Octra/lyta-shield}"
+LYTA_DIR="${LYTA_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 GUARD="${LYTA_DIR}/integrations/hermes_guard.py"
 
 if [[ ! -f "$GUARD" ]]; then
@@ -385,7 +385,8 @@ hermes\s*\(\)\s*\{[\s\S]*?
 \}",
         """
 # LYTA Shield — hermes wrapper (auto-installed)
-LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
+LYTA_SHIELD_DIR="${LYTA_SHIELD_DIR:-/Users/test/Octra/lyta-shield}"
+LYTA_SHIELD_WRAPPER="${LYTA_SHIELD_DIR}/integrations/hermes-wrapper.sh"
 LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
 hermes() {
   if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
@@ -406,7 +407,8 @@ else:
     text = text.rstrip() + """
 
 # LYTA Shield — hermes wrapper (auto-installed)
-LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
+LYTA_SHIELD_DIR="${LYTA_SHIELD_DIR:-/Users/test/Octra/lyta-shield}"
+LYTA_SHIELD_WRAPPER="${LYTA_SHIELD_DIR}/integrations/hermes-wrapper.sh"
 LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
 hermes() {
   if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
