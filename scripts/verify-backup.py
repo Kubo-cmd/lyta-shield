@@ -19,10 +19,19 @@ from nacl.exceptions import BadSignatureError
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 scripts/verify-backup.py <manifest.json>", file=sys.stderr)
+        print("Usage: python3 scripts/verify-backup.py <manifest.json|backup_dir>", file=sys.stderr)
         sys.exit(1)
 
-    manifest_path = Path(sys.argv[1])
+    arg = Path(sys.argv[1])
+    if arg.is_dir():
+        candidates = sorted(arg.glob("lyta-shield-*.manifest"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not candidates:
+            print(f"[FAIL] no backup manifest found in {arg}", file=sys.stderr)
+            sys.exit(1)
+        manifest_path = candidates[0]
+        print(f"[INFO] verifying latest backup: {manifest_path.name}")
+    else:
+        manifest_path = arg
     manifest = json.loads(manifest_path.read_text())
     backup_dir = manifest_path.parent
     tar_path = backup_dir / manifest["tarball"]
