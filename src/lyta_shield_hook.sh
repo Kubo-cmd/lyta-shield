@@ -10,6 +10,7 @@
 #   LYTA_SHIELD_DISABLE=1 <command>
 
 LYTA_SHIELD_BIN="${LYTA_SHIELD_BIN:-$HOME/.config/lyta-shield/lyta_shield.py}"
+LYTA_SHIELD_RULES="${LYTA_SHIELD_RULES:-$HOME/.config/lyta-shield/rules.json}"
 
 if [[ -n "$ZSH_VERSION" ]]; then
     lyta_shield() {
@@ -19,7 +20,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
         [[ -z "$cmd" ]] && return 0
         [[ -f "$LYTA_SHIELD_BIN" ]] || return 0
         local result
-        result=$(python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
+        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
         local code=$?
         if [[ $code -eq 2 ]]; then
             echo ""
@@ -56,7 +57,7 @@ if [[ -n "$BASH_VERSION" ]]; then
         [[ -z "$cmd" ]] && return 0
         [[ -f "$LYTA_SHIELD_BIN" ]] || return 0
         local result
-        result=$(python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
+        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
         local code=$?
         if [[ $code -eq 2 ]]; then
             echo ""

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 200" width="960" height="200">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="200" fill="#0f172a" rx="16"/>
+  <g fill="none" stroke="#334155" stroke-width="2">
+    <line x1="220" y1="100" x2="340" y2="100"/>
+    <line x1="460" y1="100" x2="580" y2="100"/>
+    <line x1="700" y1="100" x2="820" y2="100"/>
+  </g>
+  <polygon points="335,92 350,100 335,108" fill="#06b6d4"/>
+  <polygon points="575,92 590,100 575,108" fill="#06b6d4"/>
+  <polygon points="815,92 830,100 815,108" fill="#06b6d4"/>
+  <rect x="40" y="50" width="180" height="100" rx="12" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="130" y="85" text-anchor="middle" fill="#fff" font-family="Inter, sans-serif" font-size="16" font-weight="700">Terminal</text>
+  <text x="130" y="110" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">shell hook</text>
+  <text x="130" y="130" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">lyta_shield.py</text>
+  <rect x="360" y="50" width="200" height="100" rx="12" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="460" y="85" text-anchor="middle" fill="#fff" font-family="Inter, sans-serif" font-size="16" font-weight="700">rules.json</text>
+  <text x="460" y="110" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">blocked / suspicious</text>
+  <text x="460" y="130" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">safe_installers</text>
+  <rect x="600" y="50" width="180" height="100" rx="12" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+  <text x="690" y="85" text-anchor="middle" fill="#fff" font-family="Inter, sans-serif" font-size="16" font-weight="700">Classifier</text>
+  <text x="690" y="110" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">rules_engine.py</text>
+  <text x="690" y="130" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono, monospace" font-size="11">Verdict</text>
+  <rect x="840" y="50" width="100" height="100" rx="12" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+  <text x="890" y="85" text-anchor="middle" fill="#fff" font-family="Inter, sans-serif" font-size="16" font-weight="700">Verdict</text>
+  <text x="890" y="110" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="11">SAFE</text>
+  <text x="890" y="130" text-anchor="middle" fill="#f87171" font-family="JetBrains Mono, monospace" font-size="11">DANGEROUS</text>
+  <text x="480" y="180" text-anchor="middle" fill="#64748b" font-family="Inter, sans-serif" font-size="12">Browser userscript + AI chat guard share the same engine</text>
+</svg>

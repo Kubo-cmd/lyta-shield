@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from lyta_shield_rules import check
+from rules_engine import check
 
 SEED = 0x4C595441  # "LYTA"
 random.seed(SEED)

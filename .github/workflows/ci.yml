@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile
+        run: python3 -m py_compile src/*.py tests/*.py
+      - name: Unit tests
+        run: python3 tests/test_lyta_shield_rules.py
+      - name: Simulation
+        run: python3 tests/lyta_shield_simulate.py
