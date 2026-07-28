@@ -139,6 +139,13 @@ Real validation requires red-team review, bug bounty, and production use.
 
 ---
 
+## Integrations
+
+- **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`. See [integrations/README.md](integrations/README.md).
+- **CI**: Every PR and push to `main` runs adversarial bypass tests via GitHub Actions.
+
+---
+
 ## Real validation
 
 The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or add a test case to `tests/test_adversarial_bypass.py`.

@@ -26,6 +26,30 @@ Exit codes:
 The command prints a JSON object with `allowed`, `verdict`, `reasons`, `matched`,
 and a human-readable `warning`.
 
+## Real-time wrappers
+
+### Shell wrapper (for interactive sessions)
+
+```bash
+# Create an alias
+alias hermes="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh hermes"
+
+# Now every command runs through the guard before output is shown
+hermes "explain ls"
+```
+
+The wrapper stores the assistant output in a temp file, runs the guard, prints the
+warning if triggered, and then prints the original output.
+
+### Audit existing chat logs
+
+```bash
+python3 integrations/hermes-chat-audit.py hermes-session.jsonl
+```
+
+The script reads JSONL/JSON/txt files with `role`/`content` messages and reports
+the counts of safe, suspicious, and dangerous assistant outputs.
+
 ## Hooking into an AI agent
 
 1. Capture each assistant message before rendering it.
