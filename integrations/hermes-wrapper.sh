@@ -17,19 +17,24 @@ fi
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
 
-if "$@" > "$OUT" 2>&1; then
-    RC=$?
-else
-    RC=$?
-fi
+# Run the wrapped command; don't exit on failure so we can still inspect output.
+set +e
+"$@" > "$OUT" 2>&1
+RC=$?
+set -e
 
 # Always run the guard before showing anything.
-if ! python3 "$GUARD" --file "$OUT" >/dev/null 2>&1; then
+set +e
+GUARD_JSON=$(python3 "$GUARD" --file "$OUT" 2>/dev/null)
+GUARD_RC=$?
+set -e
+
+if [[ $GUARD_RC -ne 0 ]]; then
     echo ""
     echo "⚠️  LYTA Shield: this assistant output triggered a guard rule."
-    echo "   Run the guard manually to inspect: python3 $GUARD --file $OUT"
+    echo "   Verdict:"
+    echo "$GUARD_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print('   ', d.get('verdict','?'), '-', ', '.join(d.get('reasons',[])))" || true
     echo ""
-    python3 "$GUARD" --file "$OUT" || true
 fi
 
 cat "$OUT"
