@@ -133,6 +133,14 @@ Real validation requires red-team review, bug bounty, and production use.
 
 ---
 
+## Real validation
+
+The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or add a test case to `tests/test_adversarial_bypass.py`.
+
+See [SECURITY.md](SECURITY.md) for the full disclosure policy.
+
+---
+
 ## Citation
 
 ```bibtex
