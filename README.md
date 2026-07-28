@@ -206,7 +206,7 @@ lyta-shield check --stdin
 lyta-shield check --json '{"role":"assistant","content":"..."}'
 lyta-shield audit session.jsonl
 lyta-shield export-session
-lyta-shield-doctor
+lyta-shield doctor
 ```
 
 ---

@@ -18,6 +18,7 @@ import json
 import sys
 from pathlib import Path
 
+
 def _find_rules_engine() -> Path:
     """Locate the rules engine relative to this script, then from the repo root."""
     here = Path(__file__).resolve().parent
@@ -34,8 +35,8 @@ def _find_rules_engine() -> Path:
 
 def _load_engine():
     engine_path = _find_rules_engine()
-    import importlib.util
     import importlib.machinery
+    import importlib.util
     sys.modules["rules_engine"] = type(sys)("rules_engine")
     loader = importlib.machinery.SourceFileLoader("rules_engine", str(engine_path))
     spec = importlib.util.spec_from_loader("rules_engine", loader)

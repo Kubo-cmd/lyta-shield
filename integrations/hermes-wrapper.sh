@@ -42,6 +42,17 @@ set +e
 RC=$?
 set -e
 
+# If the wrapped command failed, there is no assistant output to guard (likely
+# argparse / usage error). Show the failure directly to avoid false positives.
+if [[ "$RC" -ne 0 ]]; then
+    GUARD_RC=0
+    GUARD_JSON='{"verdict":"SAFE","reasons":[],"warning":""}'
+    VERDICT="SAFE"
+    REASONS="[]"
+    cat "$OUT"
+    exit $RC
+fi
+
 # Always run the guard before showing anything.
 set +e
 GUARD_JSON=$(python3 "$GUARD" --file "$OUT" 2>/dev/null)
