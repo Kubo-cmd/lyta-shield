@@ -18,5 +18,12 @@ jobs:
         run: python3 tests/test_lyta_shield_rules.py
       - name: Run adversarial bypass challenges
         run: python3 tests/test_adversarial_bypass.py
+      - name: Verify wrapper is present and executable
+        run: |
+          test -x integrations/hermes-wrapper.sh
+          test -x bin/lyta-shield
+          test -x bin/lyta-shield-doctor
+      - name: Run doctor
+        run: ./bin/lyta-shield-doctor
       - name: Compile integrations
         run: python3 -m py_compile src/*.py tests/*.py integrations/*.py

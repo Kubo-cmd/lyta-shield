@@ -144,26 +144,30 @@ Real validation requires red-team review, bug bounty, and production use.
 - **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`, and a CLI entrypoint `bin/lyta-shield`. See [integrations/README.md](integrations/README.md).
 - **CI**: Every PR and push to `main` runs adversarial bypass tests via GitHub Actions.
 
-## Hermes output guard in production
+## Strict mode (no silent fallback)
 
-Add this to your `.zshrc`:
+By default the `.zshrc` wrapper sets `LYTA_SHIELD_STRICT=1`. If the guard is missing or not executable, `hermes` is blocked with an error:
 
-```bash
-LYTA_SHIELD_WRAPPER="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh"
-hermes() {
-  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
-    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
-  else
-    /Users/test/.local/bin/hermes "$@"
-  fi
-}
+```
+❌ LYTA Shield guard is missing or not executable: ...
+   Hermes is blocked because LYTA_SHIELD_STRICT=1.
+   Fix the guard path or set LYTA_SHIELD_STRICT=0 to bypass (not recommended).
 ```
 
-From now on every `hermes` command is transparently guarded.
+This prevents the common failure mode where a "defense in depth" wrapper silently falls back to the unguarded command after a file move or permission error.
 
-![LYTA Shield CLI demo](docs/lyta-shield-demo.png)
+To opt out of strict mode:
 
-## Real validation
+```bash
+export LYTA_SHIELD_STRICT=0
+```
+
+Only do this if you are actively debugging the guard itself.
+
+### CI guarantee
+
+The GitHub Actions workflow verifies that the wrapper, CLI, and doctor scripts are executable and that the doctor passes. A missing wrapper is a build failure.
+
 
 ## Real validation
 

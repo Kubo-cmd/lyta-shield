@@ -67,6 +67,12 @@ The first verified bypass of the Hermes output guard will receive a public ackno
 
 We do not pay cash bounties. Acknowledgment + a named regression test is the reward.
 
+## Strict mode
+
+LYTA Shield follows a **no silent fallback** policy. If the guard is missing or broken, the `hermes` wrapper blocks execution in strict mode (`LYTA_SHIELD_STRICT=1`). This prevents a defense-in-depth wrapper from quietly degrading to an unguarded path.
+
+See the [README](README.md) for the install snippet and the strict-mode explanation.
+
 ## False positives and false negatives
 
 If LYTA Shield blocks something that should be safe, or misses something malicious, report it as a GitHub issue using the template below:
