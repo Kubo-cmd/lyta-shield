@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lyta-shield"
-version = "1.3.4"
+version = "1.3.8"
 description = "Output guard for AI assistants: detects paste-jacking, remote fetch-to-shell, and browser injection payloads."
 readme = "README.md"
 license = {text = "MIT"}
@@ -30,7 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "ruff>=0.4.0",
+    "ruff>=0.6.0",
 ]
 
 [project.urls]
