@@ -85,6 +85,21 @@ Public log of daily self-audits over the latest Hermes session.
 - **Notes:** The old fine-grained PAT used previously was revoked; the chain-of-trust implementation is complete locally and only awaiting the deploy key registration to be pushed to remote
 - **Commit:** 49e6e19 (local, not yet pushed)
 
+
+## 2026-07-28 (signed backup test)
+
+- **Method:** generated Ed25519 backup signing keypair, wrote `scripts/backup-sign.py`, `scripts/verify-backup.py`, and `scripts/rotate-backup-key.py`, then ran `lyta-shield backup`, `lyta-shield verify-backup`, tampered `scripts/backup-sign.py`, and ran `lyta-shield self-heal`
+- **Result:**
+  - `backup` created a signed tarball, detached Ed25519 signature, and JSON manifest in `var/backups/`
+  - `verify-backup` confirmed SHA-256 match and signature validity
+  - `restore-baseline` hashed the full 38-file tree (excluding keys, backups, git, logs, and pin)
+  - after tampering `scripts/backup-sign.py`, `doctor` reported integrity failure
+  - `self-heal` failed to fetch from upstream GitHub (404 because not yet pushed), fell back to the latest signed backup, verified it, and restored the tampered file
+  - final `doctor` reported HEALTHY, integrity verified, and signed backup verifies
+- **Verdict:** signed backup fallback works; upstream failure does not break self-heal
+- **Notes:** signing key is `var/keys/backup-sign.nacl` and `var/keys/backup-sign.nacl.pub`; public key is stored in the manifest; backups exclude keys and backups to avoid recursive bloat
+- **Commit:** d049ca2 (local, not yet pushed)
+
 ## How to reproduce
 
 ```bash
