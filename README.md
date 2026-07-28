@@ -54,6 +54,15 @@ Then start a new shell.
 
 ---
 
+
+### Deploy key setup
+
+To push changes to GitHub, the stored token is no longer used. Use the SSH deploy key:
+
+1. Run `scripts/setup-deploy-key.sh` to generate a key.
+2. Add the printed public key at https://github.com/Kubo-cmd/lyta-shield/settings/keys/new as a **Deploy key** with write access.
+3. Run `git push origin main`.
+
 ## Usage
 
 ### Terminal
