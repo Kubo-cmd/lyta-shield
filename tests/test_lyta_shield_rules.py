@@ -47,3 +47,9 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+
+def test_lyta_shield_rules():
+    """Pytest wrapper for the standalone rules test suite."""
+    assert main() == 0
