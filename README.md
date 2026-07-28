@@ -156,6 +156,17 @@ By default the `.zshrc` wrapper sets `LYTA_SHIELD_STRICT=1`. If the guard is mis
 
 This prevents the common failure mode where a "defense in depth" wrapper silently falls back to the unguarded command after a file move or permission error.
 
+### Self-healing
+
+If the wrapper or `.zshrc` function is damaged, run:
+
+```bash
+lyta-shield restore
+source ~/.zshrc
+```
+
+This re-installs the wrapper function into `~/.zshrc` without duplicates.
+
 To opt out of strict mode:
 
 ```bash
@@ -167,6 +178,8 @@ Only do this if you are actively debugging the guard itself.
 ### CI guarantee
 
 The GitHub Actions workflow verifies that the wrapper, CLI, and doctor scripts are executable and that the doctor passes. A missing wrapper is a build failure.
+
+![LYTA Shield guard active](docs/lyta-shield-guard-active.png)
 
 
 ## Real validation
