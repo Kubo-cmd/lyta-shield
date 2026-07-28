@@ -54,6 +54,8 @@
     {"id": "eval_dynamic_exec", "pattern": "\\b(eval\\s*\\(|\\beval\\s+['\"]\\$|\\bexec\\s+\\$\\(curl)\\b", "description": "Eval dynamic execution"},
     {"id": "paste_jacking_suspicious_1", "pattern": "\\b(paste\\s+(?:this\\s+)?(?:code|command|text|script)\\s+(?:into|in|inside|to)\\s+(?:the\\s+)?(?:your\\s+)?(?:terminal|shell|console|command\\s+line|prompt|window))\\b", "description": "Paste-jacking instruction"},
     {"id": "paste_jacking_suspicious_2", "pattern": "(copy\\s+(?:the\\s+following\\s+)?(?:code|command|script|text|this)\\s+(?:into|in|to|inside)\\s+(?:the\\s+)?(?:your\\s+)?(?:terminal|shell|console|command\\s+line|prompt|window))\\b", "description": "Paste-jacking instruction"},
+    {"id": "irc_handler_invitation", "pattern": "\\b(open|start|get|join|connect)\\s+(?:an?\\s+)?(?:irc|znc|bnc)\\b", "description": "Invitation to join IRC/ZNC"},
+    {"id": "irc_handler_network", "pattern": "\\b(irc|znc|bnc)\\b.*?\\b(handler|underworld|fedex|dark|underground|market|warez|carding|hackers)\\b", "description": "Invitation to criminal IRC/handler network"},
     {"id": "security_disable", "pattern": "\\b(disable\\s+(?:security|gatekeeper|sip|sudoers|firewall|defender))\\b", "description": "Security disable attempt"},
     {"id": "macos_security_disable", "pattern": "\\b(spctl\\s+--master-disable|csrutil\\s+disable)\\b", "description": "macOS security disable"},
     {"id": "browser_dynamic_code", "pattern": "\\b(Function\\s*\\(\\s*\\)|new\\s+Function\\s*\\(\\s*['\"].*?\\)|setTimeout\\s*\\(\\s*['\"].*?\\)|setInterval\\s*\\(\\s*['\"].*?\\))", "description": "Browser dynamic code execution"}
