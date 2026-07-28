@@ -55,19 +55,23 @@ jobs:
       - name: Generate backup signing keys
         run: |
           mkdir -p var/keys
-          ./scripts/generate-backup-key.py || true
+          python3 scripts/generate-backup-key.py
+          ls -la var/keys
 
       - name: Check backup key health
-        run: ./bin/lyta-shield key-health
+        run: python3 scripts/backup-key-health.py
 
       - name: Run signed backup
-        run: ./bin/lyta-shield backup
+        run: python3 scripts/backup-sign.py var/backups
 
       - name: Verify backup
-        run: ./bin/lyta-shield verify-backup
+        run: python3 scripts/verify-backup.py var/backups
 
       - name: Run backup tests
         run: python3 -m pytest tests/test_backup.py -v
+
+      - name: Debug backup artifacts
+        run: ls -la var/backups || true
 
   lint:
     runs-on: ubuntu-latest
