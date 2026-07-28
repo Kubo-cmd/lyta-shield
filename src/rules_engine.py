@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -48,6 +48,14 @@ class RuleSet:
         self.blocked = [(r["pattern"], r["id"]) for r in data.get("blocked", [])]
         self.suspicious = [(r["pattern"], r["id"]) for r in data.get("suspicious", [])]
         self.safe_installers = [(r["pattern"], r["id"]) for r in data.get("safe_installers", [])]
+        self.bounty_spam = [(r["pattern"], r["id"]) for r in data.get("bounty_spam", [])]
+
+    def _is_bounty_spam(self, cmd: str) -> tuple[bool, str]:
+        for pat, reason in self.bounty_spam:
+            m = re.search(pat, cmd, re.IGNORECASE)
+            if m:
+                return True, reason
+        return False, ""
 
     def _is_safe_installer(self, cmd: str) -> bool:
         return any(re.search(pat, cmd, re.IGNORECASE) for pat, _ in self.safe_installers)
@@ -72,6 +80,10 @@ class RuleSet:
         text = self._normalize(text)
         if not text:
             return Verdict("SAFE", 0)
+
+        spam, spam_reason = self._is_bounty_spam(text)
+        if spam:
+            return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
 
         for pat, reason in self.blocked:
             m = re.search(pat, text, re.IGNORECASE)

