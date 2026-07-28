@@ -21,7 +21,7 @@
   "/Users/test/Octra/lyta-shield/.ruff_cache/0.16.0/13450120411338204222": "83f825bee8288ce08b7e95ea05b431100f0caa861831228f12f47a6a42ff3372",
   "/Users/test/Octra/lyta-shield/.ruff_cache/0.16.0/6674412921905869067": "96a174fc63fe6dda62fa904b0abfa6756ab14a518ea27d52b143cf20e353b5ff",
   "/Users/test/Octra/lyta-shield/tests/test_adversarial_bypass.py": "760972a90bf2d8b2a45a335a628e9b5d1ddbf18bf54f42544f21e678c41983cb",
-  "/Users/test/Octra/lyta-shield/tests/test_lyta_shield_rules.py": "bcb8aa586dcba1fb74e019d4f0f705c514cf081cfcd8594dfb9dfad7b8cf0268",
+  "/Users/test/Octra/lyta-shield/tests/test_lyta_shield_rules.py": "2770d075efc440ca3776c3400c92d50b9084f1f60eaca22d777c2baf4e719c85",
   "/Users/test/Octra/lyta-shield/tests/lyta_shield_simulate.py": "6a8b3c3db532eb46601306617000bed2e1c44fde6cf906a1b3db51ce40fba33f",
   "/Users/test/Octra/lyta-shield/tests/test_performance.py": "186c78db0c365c82cb4ae623d02289db5f895fe300668f2793b952c5c3c50703",
   "/Users/test/Octra/lyta-shield/tests/test_backup.py": "1599d2593b958d01986bfe0ad85cd5662627a3e062a9fbf89788e454758e8801",
@@ -35,6 +35,7 @@
   "/Users/test/Octra/lyta-shield/docs/guard-diagram-animated.gif": "0d8d9e32f68919cfc0dd2306e553a7043f3a810c25776d4c5960cf207f29b3d9",
   "/Users/test/Octra/lyta-shield/docs/.nojekyll": "90178462ed90a686bd77431eb678f43a0f992ebdb1f754b3c42f74a908963fec",
   "/Users/test/Octra/lyta-shield/docs/pipeline.svg": "5f34617f54b7f0ac724eec3fbe75830d7634958d2b2ec30f17677eea6bbe2c1a",
+  "/Users/test/Octra/lyta-shield/docs/bounty-spam-patterns.md": "0023a57b870b8347af007a2f51a4aaec154aa3a8e1a739aeb38a0aca2e17a55c",
   "/Users/test/Octra/lyta-shield/extensions/ai-chat/README.md": "3711905fe76b987a20ff06b805cdd186734d3224d14854fcf2e85f8949901b2d",
   "/Users/test/Octra/lyta-shield/extensions/browser/README.md": "55a4d48921536da5eeabc775fa30f638293e09da2f7531d446f25f6325d42645",
   "/Users/test/Octra/lyta-shield/extensions/browser/lyta_shield_console_guard.user.js": "a8874fe49a27ba37b5037eacd7087501628464992e0945e8a709e38210b01d2d",
@@ -54,7 +55,7 @@
   "/Users/test/Octra/lyta-shield/scripts/generate-backup-key.py": "e42bfbc5907c5f1175cf288cf0c944bedacff3d1d8c4cf7701a2fbce0b9f6694",
   "/Users/test/Octra/lyta-shield/scripts/verify-backup.py": "e509f1d29b6b9dc2eaaa10e671765da5087dea487fb93566d793231d9049ddd6",
   "/Users/test/Octra/lyta-shield/src/lyta_shield_hook.sh": "fc8a49a76310f754ad6852702d9fd769cd7ec678fbfcbe397582c08e40622442",
-  "/Users/test/Octra/lyta-shield/src/rules.json": "e84b1632e75567c1026ef5186ca292488350d1c7f784be1569da1900e66d7e23",
-  "/Users/test/Octra/lyta-shield/src/rules_engine.py": "e04636c25ab48189567016ac2fdb777bb60637d4dfb1916ddf33657383a4a7aa",
+  "/Users/test/Octra/lyta-shield/src/rules.json": "5275d51154c0cd48c1169a3cb256ade3bae4ab0b6ab73840e725eab9d0581ff7",
+  "/Users/test/Octra/lyta-shield/src/rules_engine.py": "5a60f2697c4943ad0ba36f10f69ef80f44068addbff3b302903fd4e3f40db4ba",
   "/Users/test/Octra/lyta-shield/src/lyta_shield.py": "7ec9d9bf96a6a4f9f0f80d804a709b0bfa7a221a64434ca4a93d1e8440097434"
 }
