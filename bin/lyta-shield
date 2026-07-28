@@ -74,6 +74,22 @@ else:
 print(f"╚══ Health: {health}")
 PY
         ;;
+    reset)
+        EVENT_LOG="${LYTA_EVENT_LOG:-${LYTA_DIR}/var/hermes-guard-events.jsonl}"
+        CIRCUIT_MARKER="${LYTA_DIR}/var/circuit-breaker-open"
+        ROTATED="${EVENT_LOG}.$(date +%Y%m%d%H%M%S).rotated"
+        if [[ -f "$EVENT_LOG" ]]; then
+            mv "$EVENT_LOG" "$ROTATED"
+            echo "Rotated event log to $ROTATED"
+        fi
+        if [[ -f "$CIRCUIT_MARKER" ]]; then
+            rm -f "$CIRCUIT_MARKER"
+            echo "Cleared circuit breaker."
+        else
+            echo "Circuit breaker was already closed."
+        fi
+        echo "Run 'source ~/.zshrc' to ensure a fresh Hermes chat session."
+        ;;
     restore)
         # Re-apply the Hermes wrapper function to .zshrc
         ZSHRC="${HOME}/.zshrc"
@@ -151,6 +167,7 @@ Commands:
   export-session         export current Hermes session to JSONL
   wrapper <cmd> [args]   run a command with output guarded
   status                 show last 5 events and overall health
+  reset                  clear circuit breaker and rotate event log
   restore                re-install the Hermes wrapper into ~/.zshrc
   doctor                 verify the guard is healthy
 
@@ -159,6 +176,7 @@ Examples:
   lyta-shield check --file message.txt
   lyta-shield wrapper bash -c 'echo "hello"'
   lyta-shield status
+  lyta-shield reset
   lyta-shield restore
   lyta-shield doctor
 EOF
