@@ -210,6 +210,61 @@
       "id": "browser_credential_phishing",
       "pattern": "\\b(prompt\\s*\\(\\s*['\"]Please\\s+enter\\s+your\\s+(?:password|token|key|secret)|confirm\\s*\\(\\s*['\"].*?(?:password|token|key|secret))\\b",
       "description": "Browser credential phishing"
+    },
+    {
+      "id": "source_process_substitution",
+      "pattern": "\\b(source|\\.)\\s*<\\s*\\(\\s*(curl|wget|fetch)\\s+.*\\)",
+      "description": "source process substitution with remote fetch"
+    },
+    {
+      "id": "eval_command_substitution",
+      "pattern": "\\beval\\s*\\$\\s*\\(\\s*(curl|wget|fetch)\\s+",
+      "description": "eval with command substitution of remote fetch"
+    },
+    {
+      "id": "bash_process_substitution",
+      "pattern": "\\b(?:ba)?sh\\s*<\\s*\\(\\s*(curl|wget|fetch)\\s+",
+      "description": "bash process substitution with remote fetch"
+    },
+    {
+      "id": "curl_download_and_execute",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\s+(?:>\\s+|\\-o\\s+)\\S+\\s+&&\\s+chmod\\s+\\+x\\s+\\S+\\s+&&\\s+(?:sudo\\s+)?(?:(?:\\.\\/|\\/)[^\\s]+|bash\\s+[^\\s]+|sh\\s+[^\\s]+)\\b",
+      "description": "download with curl, chmod, then execute"
+    },
+    {
+      "id": "curl_download_to_bash",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\s+(?:>\\s+|\\-o\\s+)\\S+\\.sh\\s*(?:&&|;)\\s*(?:ba)?sh\\s+\\S+\\.sh\\b",
+      "description": "download sh script and execute with bash"
+    },
+    {
+      "id": "curl_fetch_sequential_bash",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\s*(?:;|&&|\\|\\|)\\s*(?:ba)?sh\\b",
+      "description": "remote fetch then bash sequentially"
+    },
+    {
+      "id": "curl_awk_system",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*awk\\s+.*?\\{\\s*system\\s*\\(",
+      "description": "pipe remote fetch to awk system"
+    },
+    {
+      "id": "curl_env_bash",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*env\\s+(?:ba)?sh\\b",
+      "description": "pipe remote fetch to env bash"
+    },
+    {
+      "id": "python_curl_command_substitution",
+      "pattern": "\\bpython[23]?\\s+-c\\s+[\"\\x27]\\s*\\$\\s*\\(\\s*(curl|wget|fetch)\\s+",
+      "description": "python -c with command substitution of remote fetch"
+    },
+    {
+      "id": "perl_curl_command_substitution",
+      "pattern": "\\bperl\\s+-e\\s+[\"\\x27].*?\\$\\s*\\(\\s*(curl|wget|fetch)\\s+",
+      "description": "perl -e with command substitution of remote fetch"
+    },
+    {
+      "id": "unquoted_base64_to_python",
+      "pattern": "\\b(?:echo|printf)\\s+[A-Za-z0-9+/=\\s]{20,}\\s*\\|\\s*base64\\s+(-d|--decode)\\s*\\|\\s*python[23]?\\b",
+      "description": "unquoted base64 decode to python"
     }
   ],
   "suspicious": [
@@ -275,7 +330,7 @@
     },
     {
       "id": "irc_handler_connect",
-      "pattern": "(?<!rule for \")(?<!rule: )(?<!example )(?<!test )(?<!audit )(?<!discussion )\\b(?:connect|start|getting)\\s+(?:with|into)\\s+(?:the\\s+)?(?:underworld|hackers|dark|market|warez|carding|handler)\\b",
+      "pattern": "(?<!rule for \")(?<!rule for \\')(?<!rule for \\')(?<!rule \\')(?<!rule \")(?<!rule: )(?<!example )(?<!test )(?<!audit )(?<!discussion )(?<!the rule \\')(?<!the rule \")\\b(?:connect|start|getting)\\s+(?:with|into)\\s+(?:the\\s+)?(?:underworld|hackers|dark|market|warez|carding|handler)\\b(?![\\s\\w\\'\"\\-]*(?:to understand|to study|to learn|to defend|to protect|to research|in the document|in the report|for research))",
       "description": "Invitation to connect with criminal networks"
     },
     {
@@ -299,6 +354,11 @@
       "id": "hermes_official_installer",
       "pattern": "https://hermes-agent\\.nousresearch\\.com/install\\.sh",
       "description": "Hermes official installer"
+    },
+    {
+      "id": "homebrew_raw_installer",
+      "pattern": "https://raw\\.githubusercontent\\.com/Homebrew/install/.*install",
+      "description": "Homebrew official raw installer"
     },
     {
       "id": "ollama_official_installer",

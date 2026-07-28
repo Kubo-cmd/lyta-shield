@@ -39,7 +39,7 @@ SHOULD_BE_SAFE = [
     ("safe_ls", "ls -la", 0),
     ("safe_hermes", "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash", 1),
     ("safe_ollama", "curl -fsSL https://ollama.com/install.sh | bash", 1),
-    ("safe_brew", '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"', 2),
+    ("safe_brew", '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"', 1),
     ("safe_node", "node app.js", 0),
     ("safe_python", "python3 script.py", 0),
     ("safe_echo", "echo hello world", 0),

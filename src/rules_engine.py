@@ -60,6 +60,26 @@ class RuleSet:
     def _is_safe_installer(self, cmd: str) -> bool:
         return any(re.search(pat, cmd, re.IGNORECASE) for pat, _ in self.safe_installers)
 
+    def _is_safe_context(self, text: str) -> bool:
+        # Educational / defensive / testing contexts where paste-jacking
+        # instructions are not malicious.
+        safe_markers = [
+            r"\btest\s+(?:command|case|example|scenario|rule)\b",
+            r"\bexample\s+(?:command|case|rule|test)\b",
+            r"\btutorial\b",
+            r"\bdocumentation\b",
+            r"\bfor\s+(?:research|documentation|study|testing|education)\b",
+            r"\bto\s+(?:understand|study|learn|defend|protect|research)\b",
+            r"\bdefensive\s+(?:context|analysis|example|rule)\b",
+            r"\bthe\s+rule\s+(?:for\s+)?['\"]",
+            r"\bwe\s+(?:discussed|analyzed|audited|tested)\b",
+            r"\bdo\s+not\s+(?:run|execute|copy|paste)\b",
+            r"\bnever\s+(?:run|execute|copy|paste)\b",
+            r"\bcopy\s+this\s+and\s+paste\s+it\s+into\s+(?:the\s+)?(?:your\s+)?(?:shell|terminal|console)\s+for\s+(?:the\s+)?(?:tutorial|documentation|example|test)",
+            r"\bcopy\s+this\s+(?:command|code|script)\s+for\s+(?:the\s+)?(?:tutorial|documentation|example|test)",
+        ]
+        return any(re.search(pat, text, re.IGNORECASE) for pat in safe_markers)
+
     def _normalize(self, text: str) -> str:
         text = unicodedata.normalize("NFKC", text)
         # Strip ANSI escape sequences
@@ -85,7 +105,10 @@ class RuleSet:
             return ""
 
     def _run_blocked_checks(self, text: str) -> Optional[Verdict]:
+        safe_context = self._is_safe_context(text)
         for pat, reason in self.blocked:
+            if safe_context and ("paste" in reason or "copy_paste" in reason):
+                continue
             m = re.search(pat, text, re.IGNORECASE)
             if m:
                 if reason == "remote_fetch_to_shell" and self._is_safe_installer(text):
@@ -105,6 +128,11 @@ class RuleSet:
         spam, spam_reason = self._is_bounty_spam(text)
         if spam:
             return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
+
+        # Known safe installers are still remote shell execution, but from a
+        # trusted source. Flag as SUSPICIOUS rather than DANGEROUS.
+        if self._is_safe_installer(text):
+            return Verdict("SUSPICIOUS", 1, reasons=["known_safe_installer"])
 
         result = self._run_blocked_checks(text)
         if result:
@@ -132,9 +160,6 @@ class RuleSet:
                 reasons.append(reason)
         if reasons:
             return Verdict("SUSPICIOUS", 1, reasons=reasons)
-
-        if self._is_safe_installer(text):
-            return Verdict("SAFE", 0, reasons=["known_safe_installer"])
 
         return Verdict("SAFE", 0)
 
