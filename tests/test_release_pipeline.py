@@ -37,7 +37,7 @@ def test_release_toolchain_is_exact_and_hash_locked():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     lock = (ROOT / "requirements-build.lock").read_text(encoding="utf-8")
     assert 'requires = ["hatchling==1.27.0"]' in pyproject
-    for package in ("build", "hatchling", "pytest", "pynacl", "ruff", "tomli"):
+    for package in ("build", "exceptiongroup", "hatchling", "pytest", "pynacl", "ruff", "tomli", "typing-extensions"):
         assert re.search(rf"^{package}==[^\s]+", lock, re.MULTILINE)
     assert "--hash=sha256:" in lock
     assert ">=" not in lock
