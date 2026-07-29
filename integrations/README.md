@@ -61,7 +61,7 @@ python3 integrations/codex_security_bridge.py preflight . \
   --working-tree
 ```
 
-The bridge is dry-run-only, requires an explicit scope, verifies the package CLI digest and exact version, selects Python 3.10+, strips secret-bearing environment variables, and writes only outside the repository. It does not authenticate, install, or start a paid scan automatically. Use `ingest-sarif` only with owner-controlled regular files inside mode-`0700` directories.
+The bridge is dry-run-only, requires an explicit scope, verifies the package CLI digest, exact version, package-lock digest, and complete platform runtime tree, selects Python 3.10+, strips secret-bearing environment variables, and writes only outside the repository. It does not authenticate, install, or start a paid scan automatically. Use `ingest-sarif` only with owner-controlled regular files inside mode-`0700` directories.
 
 ## Hooking into an AI agent
 

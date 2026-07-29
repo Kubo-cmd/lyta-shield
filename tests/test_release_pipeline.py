@@ -70,3 +70,21 @@ def test_sbom_generator_is_deterministic(tmp_path):
     document = json.loads(outputs[0].read_text(encoding="utf-8"))
     assert document["bomFormat"] == "CycloneDX"
     assert document["specVersion"] == "1.6"
+
+
+def test_release_requires_exact_main_sha_and_green_push_ci_before_build():
+    workflow = RELEASE.read_text(encoding="utf-8")
+    gate = workflow.index("- name: Require exact main commit and green push CI")
+    build = workflow.index("- name: Install hash-locked release toolchain")
+    assert gate < build
+    for required in (
+        "actions: read",
+        'gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha',
+        "--workflow ci.yml",
+        "--branch main",
+        '--commit "${GITHUB_SHA}"',
+        "--event push",
+        "--status success",
+        'test "${ci_record}" = "${expected_record}"',
+    ):
+        assert required in workflow

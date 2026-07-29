@@ -13,10 +13,12 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -72,6 +74,151 @@ def _secret_stripped_environment() -> dict[str, str]:
     }
 
 
+def _regular_file_record(path: Path) -> dict[str, Any]:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or metadata.st_nlink != 1
+            or metadata.st_mode & 0o022
+        ):
+            raise ValueError(f"File ownership or permissions are unsafe: {path}")
+        digest = hashlib.sha256()
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+        return {
+            "type": "file",
+            "mode": stat.S_IMODE(metadata.st_mode),
+            "size": metadata.st_size,
+            "sha256": digest.hexdigest(),
+        }
+    finally:
+        os.close(descriptor)
+
+
+def _sha256_file(path: Path) -> str:
+    return str(_regular_file_record(path)["sha256"])
+
+
+def _read_safe_regular_text(path: Path, *, max_bytes: int = 8 * 1024 * 1024) -> str:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()
+            or metadata.st_nlink != 1
+            or metadata.st_mode & 0o022
+            or metadata.st_size > max_bytes
+        ):
+            raise ValueError(f"File ownership, permissions, or size are unsafe: {path}")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, min(1024 * 1024, max_bytes + 1))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if sum(map(len, chunks)) > max_bytes:
+                raise ValueError(f"File is too large: {path}")
+        return b"".join(chunks).decode("utf-8")
+    finally:
+        os.close(descriptor)
+
+
+def _runtime_root(executable: Path) -> Path | None:
+    for parent in executable.parents:
+        if parent.name == "node_modules":
+            return parent
+    return None
+
+
+def _runtime_entries(root: Path) -> dict[str, dict[str, Any]]:
+    entries: dict[str, dict[str, Any]] = {}
+    root = root.resolve()
+    for current, directories, files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        names = list(files)
+        for directory in list(directories):
+            candidate = current_path / directory
+            if candidate.is_symlink():
+                directories.remove(directory)
+                names.append(directory)
+        for name in names:
+            path = current_path / name
+            relative = path.relative_to(root).as_posix()
+            metadata = path.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                target = os.readlink(path)
+                resolved_target = (path.parent / target).resolve()
+                try:
+                    resolved_target.relative_to(root)
+                except ValueError as error:
+                    raise ValueError(f"Runtime symlink escapes dependency tree: {relative}") from error
+                if not resolved_target.exists():
+                    raise ValueError(f"Runtime symlink is broken: {relative}")
+                entries[relative] = {"type": "symlink", "target": target}
+                continue
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError(f"Runtime entry is not a regular file: {relative}")
+            entries[relative] = _regular_file_record(path)
+    return dict(sorted(entries.items()))
+
+
+def build_runtime_manifest(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    package_lock = root.parent / "package-lock.json"
+    if not package_lock.is_file():
+        raise ValueError("Codex Security runtime package-lock.json is missing")
+    return {
+        "version": 1,
+        "platform": {"system": platform.system().lower(), "machine": platform.machine().lower()},
+        "package_lock_sha256": _sha256_file(package_lock),
+        "entries": _runtime_entries(root),
+    }
+
+
+def write_runtime_manifest(root: Path, output: Path) -> None:
+    document = build_runtime_manifest(root)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{output.name}.", dir=output.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(document, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o644)
+        os.replace(temporary, output)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _runtime_tree_trusted(executable: Path) -> bool:
+    root = _runtime_root(executable)
+    if root is None:
+        return True
+    configured = os.environ.get("CODEX_SECURITY_RUNTIME_MANIFEST")
+    manifest = (
+        Path(configured).expanduser()
+        if configured
+        else root.parent / f"runtime-integrity-{platform.system().lower()}-{platform.machine().lower()}.json"
+    )
+    try:
+        expected = json.loads(_read_safe_regular_text(manifest))
+        current = build_runtime_manifest(root)
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+        return False
+    return expected == current
+
+
 def resolve_python() -> str | None:
     configured = os.environ.get("CODEX_SECURITY_PYTHON")
     names = [configured] if configured else ["python3.12", "python3.11", "python3.10"]
@@ -117,7 +264,9 @@ def _trusted_executable(path: str | Path) -> Path | None:
                 digest.update(chunk)
     except OSError:
         return None
-    return resolved if digest.hexdigest() == expected else None
+    if digest.hexdigest() != expected or not _runtime_tree_trusted(resolved):
+        return None
+    return resolved
 
 
 def resolve_codex_security(repository: Path | None = None) -> str | None:
@@ -155,6 +304,7 @@ def doctor(repository: Path | None = None) -> dict[str, Any]:
         "python_3_10_or_later": python is not None,
         "codex_security_installed": cli is not None,
         "codex_security_digest_pinned": cli is not None,
+        "codex_security_runtime_tree_pinned": cli is not None,
         "codex_security_exact_version": cli_version == UPSTREAM_PACKAGE_VERSION,
     }
     return {

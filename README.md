@@ -41,8 +41,8 @@ One wrong paste can compromise your entire machine. LYTA Shield intercepts the d
 ### Terminal guard
 
 ```bash
-tar -xzf lyta-shield-v1.5.0.tar.gz
-cd lyta-shield-v1.5.0
+tar -xzf lyta-shield-v1.5.1.tar.gz
+cd lyta-shield-v1.5.1
 ./install.sh
 ```
 
@@ -89,7 +89,7 @@ npm ci --prefix integrations/codex-security-runtime --ignore-scripts --no-audit 
 python3 integrations/codex_security_bridge.py doctor .
 ```
 
-The runtime lock pins every npm artifact. The bridge additionally verifies the reviewed CLI SHA-256, requires Node.js 22+ and Python 3.10+, strips secret-bearing environment variables, keeps ChatGPT authentication explicit, and permits only network-free dry runs with an explicit path, diff, or working-tree scope:
+The runtime lock pins every npm artifact. The bridge additionally verifies the reviewed CLI SHA-256 and the complete platform-specific runtime tree, requires Node.js 22+ and Python 3.10+, strips secret-bearing environment variables, keeps ChatGPT authentication explicit, and permits only network-free dry runs with an explicit path, diff, or working-tree scope:
 
 ```bash
 umask 077

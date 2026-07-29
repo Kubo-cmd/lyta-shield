@@ -6,6 +6,7 @@ on:
       - "v*"
 
 permissions:
+  actions: read
   contents: write
   id-token: write
   attestations: write
@@ -45,6 +46,27 @@ jobs:
               raise SystemExit(f"tag/version mismatch: {os.environ['GITHUB_REF_NAME']} != {expected}")
           PY
           test -z "$(git status --porcelain)"
+
+      - name: Require exact main commit and green push CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${main_sha}" = "${GITHUB_SHA}"
+          ci_record="$(gh run list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow ci.yml \
+            --branch main \
+            --commit "${GITHUB_SHA}" \
+            --event push \
+            --status success \
+            --limit 1 \
+            --json headSha,headBranch,event,conclusion \
+            --jq '.[] | [.headSha, .headBranch, .event, .conclusion] | @tsv')"
+          expected_record="$(printf '%s\tmain\tpush\tsuccess' "${GITHUB_SHA}")"
+          test "${ci_record}" = "${expected_record}"
 
       - name: Install hash-locked release toolchain
         run: python3 -m pip install --require-hashes -r requirements-build.lock

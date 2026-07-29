@@ -1,5 +1,12 @@
 # LYTA Shield Changelog
 
+## v1.5.1
+
+- Pin the complete optional Codex Security runtime tree, including loaded modules, transitive files, symlinks, modes, sizes, and the package-lock digest.
+- Reject modified, missing, injected, unsafe-permission, or escaping runtime entries before resolving or executing the optional scanner.
+- Require release tags to point at the exact current `main` commit with successful push CI before building or attesting artifacts.
+- Make an open circuit breaker fail `doctor` health checks instead of reporting a false healthy state.
+
 ## v1.5.0
 
 - Fail closed when the terminal guard is missing, unsafe, or exits unexpectedly, while preserving visible diagnostics.

@@ -13,8 +13,9 @@ Security properties:
 - exact package version and npm integrity values are committed in `package-lock.json`;
 - npm lifecycle scripts are disabled during installation;
 - `node_modules/` is local and untracked;
-- the bridge verifies the reviewed CLI SHA-256 before every invocation;
+- the bridge verifies the reviewed CLI SHA-256 and exact platform runtime-tree manifest before every invocation;
+- the runtime manifest rejects modified, missing, injected, unsafe-permission, broken, or escaping dependency entries;
 - only the upstream network-free `scan --dry-run` path is exposed;
 - no authentication or paid scan is started by installation.
 
-After any intentional package upgrade, review the upstream diff, regenerate the lockfile, audit dependencies, verify `info --json`, update the package/plugin/commit/integrity/CLI digest pins in `../codex_security_bridge.py`, and rerun the full regression suite.
+After any intentional package upgrade, review the upstream diff, regenerate the lockfile, audit dependencies, verify `info --json`, update the package/plugin/commit/integrity/CLI digest pins in `../codex_security_bridge.py`, run `python3 ../../scripts/generate-codex-runtime-manifest.py`, review the manifest diff, and rerun the full regression suite.

@@ -18,6 +18,26 @@ SPEC.loader.exec_module(bridge)
 
 
 class CodexSecurityBridgeTests(unittest.TestCase):
+    def _runtime_fixture(self, directory: str):
+        runtime = Path(directory) / "runtime"
+        root = runtime / "node_modules"
+        launcher = root / "@openai" / "codex-security" / "bin" / "codex-security.mjs"
+        loaded_module = root / "@openai" / "codex-security" / "dist" / "cli.js"
+        launcher.parent.mkdir(parents=True)
+        loaded_module.parent.mkdir(parents=True)
+        launcher.write_text("#!/usr/bin/env node\nimport '../dist/cli.js';\n", encoding="utf-8")
+        launcher.chmod(0o755)
+        loaded_module.write_text("export const trusted = true;\n", encoding="utf-8")
+        (runtime / "package-lock.json").write_text('{"lockfileVersion":3}\n', encoding="utf-8")
+        manifest = runtime / "runtime-integrity-test.json"
+        bridge.write_runtime_manifest(root, manifest)
+        digest = hashlib.sha256(launcher.read_bytes()).hexdigest()
+        environment = {
+            "CODEX_SECURITY_SHA256": digest,
+            "CODEX_SECURITY_RUNTIME_MANIFEST": str(manifest),
+        }
+        return root, launcher, loaded_module, manifest, environment
+
     def test_build_dry_run_is_offline_guarded(self):
         command = bridge.build_dry_run_command(
             "/usr/local/bin/codex-security",
@@ -137,6 +157,62 @@ class CodexSecurityBridgeTests(unittest.TestCase):
             digest = hashlib.sha256(target.read_bytes()).hexdigest()
             with mock.patch.dict(os.environ, {"CODEX_SECURITY_SHA256": digest}):
                 self.assertEqual(bridge._trusted_executable(link), target.resolve())
+
+    def test_runtime_tree_manifest_accepts_exact_dependency_closure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, launcher, _loaded, _manifest, environment = self._runtime_fixture(directory)
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertEqual(bridge._trusted_executable(launcher), launcher.resolve())
+
+    def test_runtime_tree_manifest_rejects_modified_loaded_module(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, launcher, loaded, _manifest, environment = self._runtime_fixture(directory)
+            loaded.write_text("export const trusted = false;\n", encoding="utf-8")
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertIsNone(bridge._trusted_executable(launcher))
+
+    def test_runtime_tree_manifest_rejects_missing_or_unexpected_files(self):
+        for mutation in ("missing", "unexpected"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root, launcher, loaded, _manifest, environment = self._runtime_fixture(directory)
+                if mutation == "missing":
+                    loaded.unlink()
+                else:
+                    (root / "injected.js").write_text("export default 1;\n", encoding="utf-8")
+                with mock.patch.dict(os.environ, environment, clear=False):
+                    self.assertIsNone(bridge._trusted_executable(launcher))
+
+    def test_runtime_tree_manifest_rejects_changed_package_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, launcher, _loaded, _manifest, environment = self._runtime_fixture(directory)
+            (root.parent / "package-lock.json").write_text('{"lockfileVersion":2}\n', encoding="utf-8")
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertIsNone(bridge._trusted_executable(launcher))
+
+    def test_runtime_tree_manifest_rejects_unsafe_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, launcher, loaded, _manifest, environment = self._runtime_fixture(directory)
+            loaded.chmod(0o777)
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertIsNone(bridge._trusted_executable(launcher))
+
+    def test_runtime_tree_manifest_rejects_escaping_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, launcher, _loaded, _manifest, environment = self._runtime_fixture(directory)
+            outside = Path(directory) / "outside.js"
+            outside.write_text("export default 1;\n", encoding="utf-8")
+            (root / "escape.js").symlink_to(outside)
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertIsNone(bridge._trusted_executable(launcher))
+
+    def test_runtime_tree_manifest_rejects_manifest_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, launcher, _loaded, manifest, environment = self._runtime_fixture(directory)
+            outside = Path(directory) / "copied-manifest.json"
+            manifest.replace(outside)
+            manifest.symlink_to(outside)
+            with mock.patch.dict(os.environ, environment, clear=False):
+                self.assertIsNone(bridge._trusted_executable(launcher))
 
     def test_normalizes_sarif_and_preserves_fingerprint(self):
         sarif = {

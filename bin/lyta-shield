@@ -150,6 +150,7 @@ PY
 
         if [[ -f "$CIRCUIT" ]]; then
             echo "[ALERT] circuit breaker is OPEN"
+            FAIL=1
         else
             echo "[OK] circuit breaker is closed"
         fi
