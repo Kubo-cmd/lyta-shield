@@ -16,8 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "bin" / "lyta-shield"
 
 
-def run_cli(*args, env=None):
-    return subprocess.run([str(CLI), *args], text=True, capture_output=True, env=env)
+def run_cli(*args, env=None, cli=CLI, cwd=ROOT):
+    runtime_env = (env or os.environ).copy()
+    runtime_env["PATH"] = os.pathsep.join((str(Path(sys.executable).parent), runtime_env.get("PATH", "")))
+    runtime_env["PYTHONPATH"] = os.pathsep.join(str(path) for path in sys.path if path)
+    return subprocess.run([str(cli), *args], text=True, capture_output=True, env=runtime_env, cwd=cwd)
 
 
 def isolated_key_scripts(tmp_path: Path) -> tuple[Path, dict[str, str]]:
@@ -35,20 +38,45 @@ def isolated_key_scripts(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
 
 @pytest.fixture(scope="module")
-def backup_result():
-    result = run_cli("backup")
+def backup_result(tmp_path_factory):
+    sandbox = tmp_path_factory.mktemp("backup-repo") / "repo"
+    shutil.copytree(
+        ROOT,
+        sandbox,
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
+    )
+    home = sandbox.parent / "home"
+    home.mkdir()
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    env["PYTHONPATH"] = os.pathsep.join(str(path) for path in sys.path)
+    env.pop("LYTA_BACKUP_PUBLIC_KEY", None)
+    generate = subprocess.run(
+        [sys.executable, str(sandbox / "scripts" / "generate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=sandbox,
+    )
+    assert generate.returncode == 0, generate.stderr
+    cli = sandbox / "bin" / "lyta-shield"
+    result = run_cli("backup", env=env, cli=cli, cwd=sandbox)
     assert result.returncode == 0, result.stderr
     lines = [Path(line) for line in result.stdout.splitlines() if line.strip()]
     archive, manifest = lines[-2:]
-    try:
-        yield archive, manifest
-    finally:
-        archive.unlink(missing_ok=True)
-        manifest.unlink(missing_ok=True)
+    yield {
+        "archive": archive,
+        "manifest": manifest,
+        "public_key": sandbox / "var" / "keys" / "backup-sign.nacl.pub",
+        "cli": cli,
+        "cwd": sandbox,
+        "env": env,
+    }
 
 
 def test_backup_creates_signed_archive(backup_result):
-    archive, manifest_path = backup_result
+    archive = backup_result["archive"]
+    manifest_path = backup_result["manifest"]
     manifest = json.loads(manifest_path.read_text())
     assert archive.exists()
     assert manifest_path.exists()
@@ -63,16 +91,22 @@ def test_backup_creates_signed_archive(backup_result):
 
 
 def test_verify_backup_passes(backup_result):
-    _, manifest = backup_result
-    result = run_cli("verify-backup", str(manifest))
+    manifest = backup_result["manifest"]
+    result = run_cli(
+        "verify-backup",
+        str(manifest),
+        env=backup_result["env"],
+        cli=backup_result["cli"],
+        cwd=backup_result["cwd"],
+    )
     assert result.returncode == 0, result.stderr
     assert "[OK] backup verified" in result.stdout
 
 
 def test_backup_signature_is_ed25519(backup_result):
-    _, manifest_path = backup_result
+    manifest_path = backup_result["manifest"]
     manifest = json.loads(manifest_path.read_text())
-    public_key = (ROOT / "var" / "keys" / "backup-sign.nacl.pub").read_bytes()
+    public_key = backup_result["public_key"].read_bytes()
     VerifyKey(public_key).verify(
         canonical_message(manifest),
         base64.b64decode(manifest["signature"], validate=True),
@@ -96,7 +130,7 @@ def test_manifest_path_traversal_is_rejected(tmp_path):
 
 
 def test_attacker_supplied_key_cannot_forge_backup(tmp_path, backup_result):
-    archive, _ = backup_result
+    archive = backup_result["archive"]
     forged_archive = tmp_path / archive.name
     forged_archive.write_bytes(b"forged")
     attacker = SigningKey.generate()
@@ -114,7 +148,13 @@ def test_attacker_supplied_key_cannot_forge_backup(tmp_path, backup_result):
     ).decode()
     path = tmp_path / "forged.tar.gz.manifest.json"
     path.write_text(json.dumps(manifest))
-    result = run_cli("verify-backup", str(path))
+    result = run_cli(
+        "verify-backup",
+        str(path),
+        env=backup_result["env"],
+        cli=backup_result["cli"],
+        cwd=backup_result["cwd"],
+    )
     assert result.returncode == 1
     assert "signature verification failed" in result.stderr
 

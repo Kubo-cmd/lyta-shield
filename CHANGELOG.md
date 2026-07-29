@@ -1,5 +1,10 @@
 # LYTA Shield Changelog
 
+## v1.4.1
+
+- Added the missing `lyta-shield` console entry point to wheel installations.
+- Verified the published wheel in a clean Python 3.11 environment.
+
 ## v1.4.0
 
 - Hardened the Hermes wrapper to inspect failed-command output, validate guard JSON strictly, and suppress dangerous content before rendering.

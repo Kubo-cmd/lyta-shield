@@ -158,3 +158,9 @@ def test_chat_audit_reads_nested_assistant_content(tmp_path):
     )
     assert result.returncode == 2
     assert "Audited 1 assistant messages" in result.stdout
+
+
+def test_wheel_declares_console_entry_point():
+    metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert '[project.scripts]' in metadata
+    assert 'lyta-shield = "lyta_shield:main"' in metadata

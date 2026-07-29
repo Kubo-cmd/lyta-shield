@@ -146,6 +146,30 @@ jobs:
       - name: Debug backup artifacts
         run: ls -la var/backups || true
 
+  packaging:
+    name: Wheel packaging and console smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m build --wheel
+
+      - name: Install and exercise console entry point
+        run: |
+          python3 -m venv /tmp/lyta-wheel
+          /tmp/lyta-wheel/bin/python -m pip install dist/*.whl
+          /tmp/lyta-wheel/bin/lyta-shield --check 'printf safe'
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
