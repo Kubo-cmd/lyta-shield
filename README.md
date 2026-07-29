@@ -82,15 +82,23 @@ LYTA_SHIELD_DISABLE=1 curl -fsSL https://example.com/install.sh | bash
 
 ### Optional Codex Security bridge
 
-The bridge fails closed unless the reviewed local scanner binary is pinned by SHA-256:
+The official scanner is isolated behind an optional, exact-version runtime. Install it only when intentionally enabling the integration:
 
 ```bash
-export CODEX_SECURITY_BIN="$(command -v codex-security)"
-export CODEX_SECURITY_SHA256="$(shasum -a 256 "$CODEX_SECURITY_BIN" | cut -d ' ' -f 1)"
-python3 integrations/codex_security_bridge.py doctor
+npm ci --prefix integrations/codex-security-runtime --ignore-scripts --no-audit --no-fund
+python3 integrations/codex_security_bridge.py doctor .
 ```
 
-Recalculate the pin only after intentionally reviewing or upgrading the scanner installation.
+The runtime lock pins every npm artifact. The bridge additionally verifies the reviewed CLI SHA-256, requires Node.js 22+ and Python 3.10+, strips secret-bearing environment variables, keeps ChatGPT authentication explicit, and permits only network-free dry runs with an explicit path, diff, or working-tree scope:
+
+```bash
+umask 077
+python3 integrations/codex_security_bridge.py preflight . \
+  --output-dir "$HOME/.hermes/tmp/lyta-codex-security-preflight" \
+  --path src
+```
+
+The bridge cannot start a paid scan. Existing SARIF can be normalized offline; inputs and outputs must be owner-controlled regular files in private directories. Recalculate any integrity pin only after intentionally reviewing and upgrading the scanner package.
 
 ### Browser
 

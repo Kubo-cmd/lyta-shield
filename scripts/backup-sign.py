@@ -26,8 +26,15 @@ BACKUP_DIR = ROOT / "var" / "backups"
 PRIVATE_KEY = ROOT / "var" / "keys" / "backup-sign.nacl"
 PUBLIC_KEY = ROOT / "var" / "keys" / "backup-sign.nacl.pub"
 
-EXCLUDED_PARTS = {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}
-EXCLUDED_NAMES = {".env", "hermes-guard-events.jsonl"}
+EXCLUDED_PARTS = {
+    ".git",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "node_modules",
+}
+EXCLUDED_NAMES = {".DS_Store", ".coverage", ".env", "hermes-guard-events.jsonl"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".key", ".pem"}
 
 

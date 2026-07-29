@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,9 @@ def backup_result(tmp_path_factory):
     env["HOME"] = str(home)
     env["PYTHONPATH"] = os.pathsep.join(str(path) for path in sys.path)
     env.pop("LYTA_BACKUP_PUBLIC_KEY", None)
+    ignored_bin = sandbox / "integrations" / "synthetic" / "node_modules" / ".bin"
+    ignored_bin.mkdir(parents=True, exist_ok=True)
+    (ignored_bin / "scanner").symlink_to("/tmp/not-part-of-backup")
     generate = subprocess.run(
         [sys.executable, str(sandbox / "scripts" / "generate-backup-key.py")],
         text=True,
@@ -88,6 +92,8 @@ def test_backup_creates_signed_archive(backup_result):
     assert "sign_message" not in manifest
     assert manifest["source"] == "."
     assert os.stat(archive).st_mode & 0o077 == 0
+    with tarfile.open(archive, "r:gz") as bundle:
+        assert all("node_modules" not in Path(name).parts for name in bundle.getnames())
 
 
 def test_verify_backup_passes(backup_result):

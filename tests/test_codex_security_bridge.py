@@ -29,7 +29,27 @@ class CodexSecurityBridgeTests(unittest.TestCase):
         self.assertIn("--json", command)
         self.assertIn("--auth", command)
         self.assertIn("chatgpt", command)
+        self.assertIn("--python", command)
         self.assertEqual(command.count("--path"), 2)
+
+    def test_requires_explicit_scan_scope(self):
+        with self.assertRaisesRegex(ValueError, "Exactly one explicit scan scope"):
+            bridge.build_dry_run_command(
+                "codex-security",
+                ROOT,
+                Path("/tmp/results"),
+            )
+
+    def test_rejects_path_escape_and_missing_path(self):
+        for requested in ("../outside", "/tmp", "missing-path"):
+            with self.subTest(requested=requested):
+                with self.assertRaises(ValueError):
+                    bridge.build_dry_run_command(
+                        "codex-security",
+                        ROOT,
+                        Path("/tmp/results"),
+                        paths=[requested],
+                    )
 
     def test_diff_and_working_tree_conflict(self):
         with self.assertRaises(ValueError):
@@ -57,6 +77,7 @@ class CodexSecurityBridgeTests(unittest.TestCase):
                 "codex-security",
                 ROOT,
                 ROOT / ".codex-security-results",
+                paths=["src"],
             )
 
     def test_refuses_non_dry_run_execution(self):
@@ -87,24 +108,35 @@ class CodexSecurityBridgeTests(unittest.TestCase):
             executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
             executable.chmod(0o755)
             digest = hashlib.sha256(executable.read_bytes()).hexdigest()
-            command = [
+            command = bridge.build_dry_run_command(
                 str(executable),
-                "scan",
-                "/tmp/repo",
-                "--output-dir",
-                str(output),
-                "--dry-run",
-                "--json",
-                "--auth",
-                "chatgpt",
-            ]
+                ROOT,
+                output,
+                paths=["src"],
+            )
             with mock.patch.dict(os.environ, {"TEST_API_TOKEN": "secret", "SAFE_VALUE": "kept", "CODEX_SECURITY_SHA256": digest}):
                 with mock.patch.object(bridge.subprocess, "run") as run:
-                    run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+                    def result_for(args, **_kwargs):
+                        output_text = "Python 3.11.0\n" if args[-1] == "--version" else ""
+                        return bridge.subprocess.CompletedProcess(args, 0, output_text, "")
+
+                    run.side_effect = result_for
                     bridge.run_dry_run(command)
-            environment = run.call_args.kwargs["env"]
+            environment = run.call_args_list[-1].kwargs["env"]
             self.assertNotIn("TEST_API_TOKEN", environment)
             self.assertEqual(environment["SAFE_VALUE"], "kept")
+
+    def test_npm_style_symlink_is_accepted_when_target_digest_is_pinned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "codex-security.mjs"
+            target.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+            target.chmod(0o755)
+            link = root / "codex-security"
+            link.symlink_to(target)
+            digest = hashlib.sha256(target.read_bytes()).hexdigest()
+            with mock.patch.dict(os.environ, {"CODEX_SECURITY_SHA256": digest}):
+                self.assertEqual(bridge._trusted_executable(link), target.resolve())
 
     def test_normalizes_sarif_and_preserves_fingerprint(self):
         sarif = {
@@ -147,6 +179,15 @@ class CodexSecurityBridgeTests(unittest.TestCase):
         self.assertEqual(result["findings"][0]["fingerprint"], "stable-id")
         self.assertEqual(result["findings"][0]["path"], "src/example.py")
         self.assertEqual(result["findings"][0]["line"], 42)
+
+    def test_truncates_messages_and_redacts_source_path(self):
+        sarif = {
+            "version": "2.1.0",
+            "runs": [{"tool": {"driver": {"rules": []}}, "results": [{"message": {"text": "x" * 5000}}]}],
+        }
+        result = bridge.normalize_sarif(sarif, Path("/private/location/scan.sarif"))
+        self.assertEqual(len(result["findings"][0]["message"]), bridge.MAX_MESSAGE_CHARS)
+        self.assertEqual(result["source_file"], "scan.sarif")
 
     def test_generates_stable_fingerprint(self):
         sarif = {
@@ -201,6 +242,18 @@ class CodexSecurityBridgeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 bridge.write_private_output(link, "replacement")
             self.assertEqual(target.read_text(encoding="utf-8"), "unchanged")
+
+    def test_private_output_and_sarif_refuse_hardlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target.json"
+            target.write_text('{"version":"2.1.0","runs":[]}', encoding="utf-8")
+            link = root / "hardlink.json"
+            os.link(target, link)
+            with self.assertRaises(ValueError):
+                bridge.load_sarif(link)
+            with self.assertRaises(ValueError):
+                bridge.write_private_output(link, "replacement")
 
 
 if __name__ == "__main__":

@@ -48,6 +48,21 @@ python3 integrations/hermes-chat-audit.py hermes-session.jsonl
 
 The script reads bounded JSONL or JSON exports, handles nested text content, scans assistant/model/agent roles, and exits with the highest observed verdict.
 
+### Optional Codex Security preflight
+
+`codex_security_bridge.py` keeps the hosted scanner outside LYTA Shield's core trust boundary. The exact npm dependency graph lives in `codex-security-runtime/package-lock.json`; installation never runs lifecycle scripts.
+
+```bash
+npm ci --prefix integrations/codex-security-runtime --ignore-scripts --no-audit --no-fund
+python3 integrations/codex_security_bridge.py doctor .
+umask 077
+python3 integrations/codex_security_bridge.py preflight . \
+  --output-dir "$HOME/.hermes/tmp/lyta-codex-security-preflight" \
+  --working-tree
+```
+
+The bridge is dry-run-only, requires an explicit scope, verifies the package CLI digest and exact version, selects Python 3.10+, strips secret-bearing environment variables, and writes only outside the repository. It does not authenticate, install, or start a paid scan automatically. Use `ingest-sarif` only with owner-controlled regular files inside mode-`0700` directories.
+
 ## Hooking into an AI agent
 
 1. Capture each assistant message before rendering it.

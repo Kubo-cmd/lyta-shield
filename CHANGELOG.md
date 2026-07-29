@@ -4,11 +4,14 @@
 
 - Fail closed when the terminal guard is missing, unsafe, or exits unexpectedly, while preserving visible diagnostics.
 - Require a reviewed SHA-256 pin for the optional Codex Security executable and revalidate it immediately before execution.
+- Pin the optional Codex Security npm runtime and complete dependency graph, accept reviewed npm binary symlinks by resolved digest rather than filename, and reject install lifecycle scripts.
+- Require one explicit scan scope, canonical dry-run arguments, Python 3.10+, private output directories, and bounded owner-only SARIF handling.
 - Reject symlink, hard-link, non-owner, and non-regular telemetry log targets.
 - Remove unauthenticated remote multi-file installation; installs now stage a complete local release snapshot before replacement.
 - Scope safe-installer and educational-context downgrades to prevent unrelated text and nested URLs from weakening dangerous matches.
 - Restore browser/Python parity for zsh fetch pipelines, destructive flag permutations, Unicode normalization, and focused JavaScript evaluation rules.
 - Add a hash-locked build toolchain, commit-pinned CI actions, clean-snapshot reproducibility checks, deterministic CycloneDX SBOM generation, provenance attestation, and tag-triggered release automation.
+- Exclude generated dependency trees and local tool caches from signed backups, with a symlink regression proving the exclusion.
 
 ## v1.4.2
 
