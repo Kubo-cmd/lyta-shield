@@ -41,8 +41,8 @@ One wrong paste can compromise your entire machine. LYTA Shield intercepts the d
 ### Terminal guard
 
 ```bash
-tar -xzf lyta-shield-v1.4.1.tar.gz
-cd lyta-shield-v1.4.1
+tar -xzf lyta-shield-v1.4.2.tar.gz
+cd lyta-shield-v1.4.2
 ./install.sh
 ```
 

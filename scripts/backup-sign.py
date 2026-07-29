@@ -42,12 +42,27 @@ def include_path(path: Path) -> bool:
     return True
 
 
+def safe_archive_filter(info: tarfile.TarInfo) -> tarfile.TarInfo:
+    """Reject links and special files even if a path changes after lstat()."""
+    if not (info.isfile() or info.isdir()):
+        raise ValueError(f"refusing unsafe backup entry: {info.name}")
+    return info
+
+
 def add_tree(archive: tarfile.TarFile) -> None:
     for path in sorted(ROOT.rglob("*")):
         if not include_path(path):
             continue
         relative = path.relative_to(ROOT)
-        archive.add(path, arcname=Path("lyta-shield") / relative, recursive=False)
+        mode = path.lstat().st_mode
+        if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+            raise ValueError(f"refusing unsafe backup entry: {relative}")
+        archive.add(
+            path,
+            arcname=Path("lyta-shield") / relative,
+            recursive=False,
+            filter=safe_archive_filter,
+        )
 
 
 def main() -> int:
@@ -67,8 +82,12 @@ def main() -> int:
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     archive_path = BACKUP_DIR / f"lyta-shield-{stamp}.tar.gz"
-    with tarfile.open(archive_path, "x:gz") as archive:
-        add_tree(archive)
+    try:
+        with tarfile.open(archive_path, "x:gz") as archive:
+            add_tree(archive)
+    except (OSError, ValueError) as error:
+        archive_path.unlink(missing_ok=True)
+        raise SystemExit(str(error)) from error
     os.chmod(archive_path, 0o600)
 
     digest = sha256_regular_file(archive_path)

@@ -158,17 +158,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build wheel
+      - name: Build wheel and source distribution
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt -r requirements-dev.txt
-          python3 -m build --wheel
+          python3 -m build --wheel --sdist
 
       - name: Install and exercise console entry point
         run: |
           python3 -m venv /tmp/lyta-wheel
           /tmp/lyta-wheel/bin/python -m pip install dist/*.whl
           /tmp/lyta-wheel/bin/lyta-shield --check 'printf safe'
+
+      - name: Install and exercise source distribution
+        run: |
+          python3 -m venv /tmp/lyta-sdist
+          /tmp/lyta-sdist/bin/python -m pip install dist/*.tar.gz
+          /tmp/lyta-sdist/bin/lyta-shield --check 'printf safe'
 
   lint:
     name: Lint

@@ -1,5 +1,13 @@
 # LYTA Shield Changelog
 
+## v1.4.2
+
+- Reject symlinks, hard links, and special files during signed-backup creation, including path-swap checks at archive time.
+- Remove partial backup archives after fail-closed creation errors.
+- Add a regression that proves external symlink targets cannot enter signed backups.
+- Add a permanent release-version synchronization regression.
+- Build, install, and execute both wheel and source distributions in CI.
+
 ## v1.4.1
 
 - Added the missing `lyta-shield` console entry point to wheel installations.

@@ -129,6 +129,38 @@ def test_manifest_path_traversal_is_rejected(tmp_path):
     assert "must be a basename" in result.stderr
 
 
+def test_backup_refuses_symlinks_and_removes_partial_archive(tmp_path):
+    sandbox = tmp_path / "repo"
+    shutil.copytree(
+        ROOT,
+        sandbox,
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
+    )
+    home = tmp_path / "home"
+    home.mkdir()
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    env["PYTHONPATH"] = os.pathsep.join(str(path) for path in sys.path if path)
+    env.pop("LYTA_BACKUP_PUBLIC_KEY", None)
+    generate = subprocess.run(
+        [sys.executable, str(sandbox / "scripts" / "generate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=sandbox,
+    )
+    assert generate.returncode == 0, generate.stderr
+    outside = tmp_path / "outside.txt"
+    outside.write_text("must not enter archive", encoding="utf-8")
+    (sandbox / "unsafe-link").symlink_to(outside)
+
+    result = run_cli("backup", env=env, cli=sandbox / "bin" / "lyta-shield", cwd=sandbox)
+
+    assert result.returncode != 0
+    assert "refusing unsafe backup entry" in result.stderr
+    assert not list((sandbox / "var" / "backups").glob("*.tar.gz"))
+
+
 def test_attacker_supplied_key_cannot_forge_backup(tmp_path, backup_result):
     archive = backup_result["archive"]
     forged_archive = tmp_path / archive.name

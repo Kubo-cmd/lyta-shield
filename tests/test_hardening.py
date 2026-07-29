@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -164,3 +165,18 @@ def test_wheel_declares_console_entry_point():
     metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '[project.scripts]' in metadata
     assert 'lyta-shield = "lyta_shield:main"' in metadata
+
+
+def test_release_versions_stay_synchronized():
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    rules = json.loads((ROOT / "src" / "rules.json").read_text(encoding="utf-8"))
+    sources = [
+        (ROOT / "src" / "lyta_shield.py").read_text(encoding="utf-8"),
+        (ROOT / "src" / "rules_engine.py").read_text(encoding="utf-8"),
+    ]
+    package_match = re.search(r'^version = "([^"]+)"$', pyproject, re.MULTILINE)
+    source_versions = [re.search(r'^VERSION = "([^"]+)"$', source, re.MULTILINE) for source in sources]
+    matches = [package_match, *source_versions]
+    assert all(match is not None for match in matches)
+    parsed_versions = {match.group(1) for match in matches if match is not None}
+    assert len({str(rules["version"]), *parsed_versions}) == 1

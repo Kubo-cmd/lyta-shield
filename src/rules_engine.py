@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
