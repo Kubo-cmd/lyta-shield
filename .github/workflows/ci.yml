@@ -24,6 +24,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install zsh for shell-hook regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends zsh
+
       - name: Install dependencies
         run: |
           python3 -m pip install --require-hashes -r requirements-build.lock
