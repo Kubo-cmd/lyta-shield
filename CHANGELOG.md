@@ -1,5 +1,11 @@
 # LYTA Shield Changelog
 
+## v1.5.2
+
+- Require release tags to be signed annotated tags verified by GitHub before artifacts are built or attested.
+- Make no-argument self-heal compatible with macOS Bash nounset semantics and cover the scheduler path with a regression test.
+- Refresh the protected-file integrity baseline after the self-heal correction.
+
 ## v1.5.1
 
 - Pin the complete optional Codex Security runtime tree, including loaded modules, transitive files, symlinks, modes, sizes, and the package-lock digest.

@@ -245,13 +245,13 @@ PY
         ;;
     self-heal)
         PIN="${LYTA_DIR}/var/trust-anchor-pin.json"
-        TARGET_ARGS=()
+        TARGET=""
         if [[ "${1:-}" == "--file" ]]; then
             if [[ -z "${2:-}" ]]; then
                 echo "Usage: lyta-shield self-heal --file <path>" >&2
                 exit 2
             fi
-            TARGET_ARGS=("$2")
+            TARGET="$2"
         elif [[ -n "${1:-}" ]]; then
             echo "Usage: lyta-shield self-heal [--file <path>]" >&2
             exit 2
@@ -261,7 +261,11 @@ PY
             echo "[INFO] run 'lyta-shield unlock' to allow self-heal."
             exit 1
         fi
-        python3 "${LYTA_DIR}/scripts/integrity.py" heal "${TARGET_ARGS[@]}"
+        if [[ -n "$TARGET" ]]; then
+            python3 "${LYTA_DIR}/scripts/integrity.py" heal "$TARGET"
+        else
+            python3 "${LYTA_DIR}/scripts/integrity.py" heal
+        fi
         ;;
     reset)
         EVENT_LOG="${LYTA_EVENT_LOG:-${LYTA_DIR}/var/hermes-guard-events.jsonl}"

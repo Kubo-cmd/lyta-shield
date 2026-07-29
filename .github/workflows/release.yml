@@ -47,12 +47,20 @@ jobs:
           PY
           test -z "$(git status --porcelain)"
 
-      - name: Require exact main commit and green push CI
+      - name: Require signed annotated tag, exact main commit, and green push CI
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}")"
+          tag_type="$(jq -r '.object.type' <<<"${tag_ref}")"
+          tag_object_sha="$(jq -r '.object.sha' <<<"${tag_ref}")"
+          test "${tag_type}" = "tag"
+          tag_record="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object_sha}" \
+            --jq '[.object.type, .object.sha, (.verification.verified|tostring), .verification.reason] | @tsv')"
+          expected_tag_record="$(printf 'commit\t%s\ttrue\tvalid' "${GITHUB_SHA}")"
+          test "${tag_record}" = "${expected_tag_record}"
           main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
           test "${main_sha}" = "${GITHUB_SHA}"
           ci_record="$(gh run list \

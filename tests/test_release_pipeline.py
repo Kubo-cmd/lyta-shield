@@ -72,13 +72,18 @@ def test_sbom_generator_is_deterministic(tmp_path):
     assert document["specVersion"] == "1.6"
 
 
-def test_release_requires_exact_main_sha_and_green_push_ci_before_build():
+def test_release_requires_signed_tag_exact_main_sha_and_green_push_ci_before_build():
     workflow = RELEASE.read_text(encoding="utf-8")
-    gate = workflow.index("- name: Require exact main commit and green push CI")
+    gate = workflow.index("- name: Require signed annotated tag, exact main commit, and green push CI")
     build = workflow.index("- name: Install hash-locked release toolchain")
     assert gate < build
     for required in (
         "actions: read",
+        'git/ref/tags/${GITHUB_REF_NAME}',
+        'test "${tag_type}" = "tag"',
+        'git/tags/${tag_object_sha}',
+        ".verification.verified",
+        'test "${tag_record}" = "${expected_tag_record}"',
         'gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha',
         "--workflow ci.yml",
         "--branch main",
