@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -106,19 +106,27 @@ class RuleSet:
 
     def _run_blocked_checks(self, text: str) -> Optional[Verdict]:
         safe_context = self._is_safe_context(text)
+        downgraded: Optional[Verdict] = None
         for pat, reason in self.blocked:
-            if safe_context and ("paste" in reason or "copy_paste" in reason):
-                continue
             m = re.search(pat, text, re.IGNORECASE)
             if m:
-                if reason == "remote_fetch_to_shell" and self._is_safe_installer(text):
-                    return Verdict(
+                if safe_context and ("paste" in reason or "copy_paste" in reason):
+                    downgraded = Verdict(
+                        "SUSPICIOUS",
+                        1,
+                        reasons=[reason, "explicit_safe_context_needs_review"],
+                        matched=m.group(0),
+                    )
+                    continue
+                if (reason.startswith("remote_fetch_to_shell") or reason in {"paste_jacking_15", "bash_c_remote_fetch", "sh_c_remote_fetch"}) and self._is_safe_installer(text):
+                    downgraded = Verdict(
                         "SUSPICIOUS", 1,
                         reasons=[reason, "known_safe_installer_needs_confirmation"],
                         matched=m.group(0)
                     )
+                    continue
                 return Verdict("DANGEROUS", 2, reasons=[reason], matched=m.group(0))
-        return None
+        return downgraded
 
     def check(self, text: str) -> Verdict:
         text = self._normalize(text)
@@ -128,11 +136,6 @@ class RuleSet:
         spam, spam_reason = self._is_bounty_spam(text)
         if spam:
             return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
-
-        # Known safe installers are still remote shell execution, but from a
-        # trusted source. Flag as SUSPICIOUS rather than DANGEROUS.
-        if self._is_safe_installer(text):
-            return Verdict("SUSPICIOUS", 1, reasons=["known_safe_installer"])
 
         result = self._run_blocked_checks(text)
         if result:

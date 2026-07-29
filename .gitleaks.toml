@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Integrity baseline contains only SHA-256 file digests."
+paths = [
+  '''^var/integrity-baseline\.json$''',
+]

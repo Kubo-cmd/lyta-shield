@@ -31,15 +31,14 @@ and a human-readable `warning`.
 ### Shell wrapper (for interactive sessions)
 
 ```bash
-# Create an alias
-alias hermes="/Users/test/Octra/lyta-shield/integrations/hermes-wrapper.sh hermes"
+# From the repository root
+alias hermes="$PWD/integrations/hermes-wrapper.sh $(command -v hermes)"
 
 # Now every command runs through the guard before output is shown
 hermes "explain ls"
 ```
 
-The wrapper stores the assistant output in a temp file, runs the guard, prints the
-warning if triggered, and then prints the original output.
+The wrapper stores output in a mode-`0600` temp file and guards it before display, including when the wrapped command exits nonzero. SAFE output is printed with the original status. SUSPICIOUS or DANGEROUS output and malformed guard results are suppressed; only a reason-only warning is shown. Event logs record the executable basename and argument count, never full arguments or output.
 
 ### Audit existing chat logs
 
@@ -47,8 +46,7 @@ warning if triggered, and then prints the original output.
 python3 integrations/hermes-chat-audit.py hermes-session.jsonl
 ```
 
-The script reads JSONL/JSON/txt files with `role`/`content` messages and reports
-the counts of safe, suspicious, and dangerous assistant outputs.
+The script reads bounded JSONL or JSON exports, handles nested text content, scans assistant/model/agent roles, and exits with the highest observed verdict.
 
 ## Hooking into an AI agent
 

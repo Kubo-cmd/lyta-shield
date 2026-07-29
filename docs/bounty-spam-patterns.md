@@ -1,8 +1,7 @@
 # Autonomous Bounty Spam Pattern: Lumi Multi-Source Harvester
 
 Date: 2026-07-28
-Source: GitHub issue comment https://github.com/Kubo-cmd/lyta-shield/issues/2#issuecomment-5108436300
-Account: `anakette`
+Source: archived repository issue comment
 Operation name claimed: "Lumi Multi-Source Harvester | Operation Max Yield"
 
 ## Pattern

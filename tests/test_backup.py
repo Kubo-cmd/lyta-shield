@@ -1,62 +1,182 @@
-#!/usr/bin/env python3
-"""Tests for backup signing, verification, and self-heal path."""
-
+import base64
+import hashlib
+import json
+import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from nacl.signing import SigningKey, VerifyKey
 
-LYTA = Path(__file__).resolve().parent.parent
+from scripts.backup_common import ALGORITHM, SCHEMA_VERSION, canonical_message
+
+ROOT = Path(__file__).resolve().parents[1]
+CLI = ROOT / "bin" / "lyta-shield"
 
 
-def run_cli(*args, timeout=60):
-    cmd = [str(LYTA / "bin" / "lyta-shield")] + list(args)
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    return result
+def run_cli(*args, env=None):
+    return subprocess.run([str(CLI), *args], text=True, capture_output=True, env=env)
+
+
+def isolated_key_scripts(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    scripts = tmp_path / "repo" / "scripts"
+    scripts.mkdir(parents=True)
+    for name in ("backup_common.py", "generate-backup-key.py", "rotate-backup-key.py"):
+        shutil.copy2(ROOT / "scripts" / name, scripts / name)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    env["PYTHONPATH"] = os.pathsep.join(str(path) for path in sys.path)
+    env.pop("LYTA_BACKUP_PUBLIC_KEY", None)
+    return scripts, env
 
 
 @pytest.fixture(scope="module")
 def backup_result():
     result = run_cli("backup")
     assert result.returncode == 0, result.stderr
-    return result
+    lines = [Path(line) for line in result.stdout.splitlines() if line.strip()]
+    archive, manifest = lines[-2:]
+    try:
+        yield archive, manifest
+    finally:
+        archive.unlink(missing_ok=True)
+        manifest.unlink(missing_ok=True)
 
 
 def test_backup_creates_signed_archive(backup_result):
-    """Backup should produce a signed tarball, signature, and manifest."""
-    var_backups = LYTA / "var" / "backups"
-    assert var_backups.exists()
-    manifests = sorted(var_backups.glob("*.manifest"))
-    assert len(manifests) > 0
-    manifest = manifests[-1]
-    data = manifest.read_text()
-    assert "sha256" in data.lower()
-    assert "signature" in data.lower()
-    assert "public_key" in data.lower()
+    archive, manifest_path = backup_result
+    manifest = json.loads(manifest_path.read_text())
+    assert archive.exists()
+    assert manifest_path.exists()
+    assert manifest["version"] == SCHEMA_VERSION
+    assert manifest["algorithm"] == ALGORITHM
+    assert manifest["archive"] == archive.name
+    assert manifest["sha256"] == hashlib.sha256(archive.read_bytes()).hexdigest()
+    assert "public_key" not in manifest
+    assert "sign_message" not in manifest
+    assert manifest["source"] == "."
+    assert os.stat(archive).st_mode & 0o077 == 0
 
 
 def test_verify_backup_passes(backup_result):
-    result = run_cli("verify-backup")
+    _, manifest = backup_result
+    result = run_cli("verify-backup", str(manifest))
     assert result.returncode == 0, result.stderr
-    assert "authentic" in result.stdout.lower() or "verified" in result.stdout.lower()
-
-
-def test_tamper_detected_and_self_heal():
-    target = LYTA / "scripts" / "backup-sign.py"
-    original = target.read_text()
-    tampered = original + "\n# TAMPERED\n"
-    target.write_text(tampered)
-    try:
-        result = run_cli("self-heal", "--file", str(target))
-        assert result.returncode in (0, 1), result.stderr
-    finally:
-        run_cli("restore-from-backup", "--file", str(target))
-        target.write_text(original)
+    assert "[OK] backup verified" in result.stdout
 
 
 def test_backup_signature_is_ed25519(backup_result):
-    var_backups = LYTA / "var" / "backups"
-    manifests = sorted(var_backups.glob("*.manifest"))
-    manifest = manifests[-1]
-    data = manifest.read_text()
-    assert "ed25519" in data.lower() or "public_key" in data.lower()
+    _, manifest_path = backup_result
+    manifest = json.loads(manifest_path.read_text())
+    public_key = (ROOT / "var" / "keys" / "backup-sign.nacl.pub").read_bytes()
+    VerifyKey(public_key).verify(
+        canonical_message(manifest),
+        base64.b64decode(manifest["signature"], validate=True),
+    )
+
+
+def test_manifest_path_traversal_is_rejected(tmp_path):
+    manifest = {
+        "version": SCHEMA_VERSION,
+        "algorithm": ALGORITHM,
+        "archive": "../escape.tar.gz",
+        "sha256": "0" * 64,
+        "signature": base64.b64encode(b"x" * 64).decode(),
+        "public_key_fingerprint": "0" * 64,
+    }
+    path = tmp_path / "bad.tar.gz.manifest.json"
+    path.write_text(json.dumps(manifest))
+    result = run_cli("verify-backup", str(path))
+    assert result.returncode == 1
+    assert "must be a basename" in result.stderr
+
+
+def test_attacker_supplied_key_cannot_forge_backup(tmp_path, backup_result):
+    archive, _ = backup_result
+    forged_archive = tmp_path / archive.name
+    forged_archive.write_bytes(b"forged")
+    attacker = SigningKey.generate()
+    manifest = {
+        "version": SCHEMA_VERSION,
+        "algorithm": ALGORITHM,
+        "archive": forged_archive.name,
+        "sha256": hashlib.sha256(forged_archive.read_bytes()).hexdigest(),
+        "created_utc": "1970-01-01T00:00:00+00:00",
+        "source": ".",
+        "public_key_fingerprint": hashlib.sha256(attacker.verify_key.encode()).hexdigest(),
+    }
+    manifest["signature"] = base64.b64encode(
+        attacker.sign(canonical_message(manifest)).signature
+    ).decode()
+    path = tmp_path / "forged.tar.gz.manifest.json"
+    path.write_text(json.dumps(manifest))
+    result = run_cli("verify-backup", str(path))
+    assert result.returncode == 1
+    assert "signature verification failed" in result.stderr
+
+
+def test_key_generation_is_umask_independent_and_creates_external_trust(tmp_path):
+    scripts, env = isolated_key_scripts(tmp_path)
+    result = subprocess.run(
+        [sys.executable, str(scripts / "generate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+        preexec_fn=lambda: os.umask(0),
+    )
+    assert result.returncode == 0, result.stderr
+    private = scripts.parent / "var" / "keys" / "backup-sign.nacl"
+    public = private.with_suffix(".nacl.pub")
+    trust = Path(env["HOME"]) / ".config" / "lyta-shield" / "trusted-backup.pub"
+    assert private.stat().st_mode & 0o777 == 0o600
+    assert private.parent.stat().st_mode & 0o777 == 0o700
+    assert SigningKey(private.read_bytes()).verify_key.encode() == public.read_bytes()
+    assert trust.read_bytes() == public.read_bytes()
+
+
+def test_key_generation_refuses_partial_or_symlinked_keypair(tmp_path):
+    scripts, env = isolated_key_scripts(tmp_path)
+    keys = scripts.parent / "var" / "keys"
+    keys.mkdir(parents=True)
+    outside = tmp_path / "outside-key"
+    outside.write_bytes(b"unchanged")
+    (keys / "backup-sign.nacl").symlink_to(outside)
+    (keys / "backup-sign.nacl.pub").write_bytes(b"x" * 32)
+    result = subprocess.run(
+        [sys.executable, str(scripts / "generate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode != 0
+    assert outside.read_bytes() == b"unchanged"
+
+
+def test_rotation_updates_keypair_and_external_trust_with_safe_modes(tmp_path):
+    scripts, env = isolated_key_scripts(tmp_path)
+    generate = subprocess.run(
+        [sys.executable, str(scripts / "generate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert generate.returncode == 0, generate.stderr
+    private = scripts.parent / "var" / "keys" / "backup-sign.nacl"
+    public = private.with_suffix(".nacl.pub")
+    trust = Path(env["HOME"]) / ".config" / "lyta-shield" / "trusted-backup.pub"
+    previous = private.read_bytes()
+    result = subprocess.run(
+        [sys.executable, str(scripts / "rotate-backup-key.py")],
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert private.read_bytes() != previous
+    assert private.stat().st_mode & 0o777 == 0o600
+    assert SigningKey(private.read_bytes()).verify_key.encode() == public.read_bytes()
+    assert trust.read_bytes() == public.read_bytes()

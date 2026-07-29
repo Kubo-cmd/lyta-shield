@@ -134,10 +134,11 @@ def run_simulation(target_calls: int = 10_000) -> dict:
         "obfuscated": (generate_obfuscated_attacks, 2),
     }
 
-    per_category = target_calls // len(categories)
+    per_category, remainder = divmod(target_calls, len(categories))
     samples = []
-    for name, (generator, expected) in categories.items():
-        samples.extend((name, expected, cmd) for cmd in generator(per_category))
+    for index, (name, (generator, expected)) in enumerate(categories.items()):
+        count = per_category + (1 if index < remainder else 0)
+        samples.extend((name, expected, cmd) for cmd in generator(count))
     random.shuffle(samples)
 
     tp = tn = fp = fn = 0
@@ -158,6 +159,8 @@ def run_simulation(target_calls: int = 10_000) -> dict:
                 failures.append((name, expected, v.code, cmd, v.reasons))
 
     total = tp + tn + fp + fn
+    if total != target_calls:
+        raise AssertionError(f"simulation count mismatch: expected {target_calls}, got {total}")
     precision = tp / (tp + fp) if (tp + fp) else 0.0
     recall = tp / (tp + fn) if (tp + fn) else 0.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
@@ -173,6 +176,7 @@ def run_simulation(target_calls: int = 10_000) -> dict:
 
 def test_simulation_fuzz():
     result = run_simulation(target_calls=10_000)
+    assert result["total_calls"] == 10_000
     header = "Simulation Results:"
     print(f"{chr(10)}{header} {result['total_calls']:,} calls")
     print(f"  TP: {result['true_positives']:,}  TN: {result['true_negatives']:,}")

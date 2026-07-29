@@ -130,32 +130,15 @@ PY
             fi
         done
 
-        if [[ -x "$GUARD" ]]; then echo "[OK] guard is executable"; else echo "[WARN] guard not executable"; fi
-        if [[ -x "$WRAPPER" ]]; then echo "[OK] wrapper is executable"; else echo "[WARN] wrapper not executable"; fi
-        if [[ -x "$CLI" ]]; then echo "[OK] cli is executable"; else echo "[WARN] cli not executable"; fi
+        if [[ -x "$GUARD" ]]; then echo "[OK] guard is executable"; else echo "[FAIL] guard not executable"; FAIL=1; fi
+        if [[ -x "$WRAPPER" ]]; then echo "[OK] wrapper is executable"; else echo "[FAIL] wrapper not executable"; FAIL=1; fi
+        if [[ -x "$CLI" ]]; then echo "[OK] cli is executable"; else echo "[FAIL] cli not executable"; FAIL=1; fi
 
         if [[ -f "$BASELINE" ]]; then
-            python3 - "$LYTA_DIR" "$BASELINE" <<'PY'
-import hashlib, json, os, sys
-root, baseline = sys.argv[1], sys.argv[2]
-with open(baseline) as f:
-    expected = json.load(f)
-all_ok = True
-for path, want_sha in expected.items():
-    if not os.path.exists(path):
-        print(f"[MISSING] {path}")
-        all_ok = False
-        continue
-    got_sha = hashlib.sha256(open(path, "rb").read()).hexdigest()
-    if got_sha == want_sha:
-        print(f"[OK] {path}")
-    else:
-        print(f"[TAMPERED] {path}")
-        all_ok = False
-print("[OK] integrity verified" if all_ok else "[FAIL] integrity check failed")
-PY
+            python3 "${LYTA_DIR}/scripts/integrity.py" verify || FAIL=1
         else
-            echo "[WARN] integrity baseline not found; run 'lyta-shield restore-baseline'"
+            echo "[FAIL] integrity baseline not found; run 'lyta-shield restore-baseline'"
+            FAIL=1
         fi
 
         if [[ -f "$EVENT_LOG" ]]; then
@@ -177,13 +160,19 @@ PY
             echo "[INFO] trust anchor is unlocked"
         fi
 
+        if python3 "${LYTA_DIR}/scripts/backup-key-health.py"; then
+            echo "[OK] backup trust anchor is healthy"
+        else
+            FAIL=1
+        fi
+
         LATEST=$(python3 - "$BACKUP_DIR" <<'PY'
 import os, sys
 backup_dir = sys.argv[1]
 if not os.path.isdir(backup_dir):
     print("", end="")
 else:
-    files = sorted([f for f in os.listdir(backup_dir) if f.endswith(".manifest")])
+    files = sorted([f for f in os.listdir(backup_dir) if f.endswith(".manifest.json")])
     if not files:
         print("", end="")
     else:
@@ -215,7 +204,7 @@ PY
     backup)
         BACKUP_DIR="${LYTA_DIR}/var/backups"
         mkdir -p "$BACKUP_DIR"
-        python3 "${LYTA_DIR}/scripts/backup-sign.py" "$BACKUP_DIR"
+        python3 "${LYTA_DIR}/scripts/backup-sign.py"
         ;;
     verify-backup)
         BACKUP_DIR="${LYTA_DIR}/var/backups"
@@ -227,7 +216,7 @@ backup_dir = sys.argv[1]
 if not os.path.isdir(backup_dir):
     print("", end="")
 else:
-    files = sorted([f for f in os.listdir(backup_dir) if f.endswith(".manifest")])
+    files = sorted([f for f in os.listdir(backup_dir) if f.endswith(".manifest.json")])
     if not files:
         print("", end="")
     else:
@@ -241,6 +230,9 @@ PY
         fi
         python3 "${LYTA_DIR}/scripts/verify-backup.py" "$MANIFEST"
         ;;
+    rotate-backups)
+        python3 "${LYTA_DIR}/scripts/rotate-backups.py" "$@"
+        ;;
     restore-baseline)
         PIN="${LYTA_DIR}/var/trust-anchor-pin.json"
         if [[ -f "$PIN" ]]; then
@@ -248,102 +240,27 @@ PY
             echo "[INFO] run 'lyta-shield unlock' to allow changes."
             exit 1
         fi
-        BASELINE="${LYTA_DIR}/var/integrity-baseline.json"
-        mkdir -p "$(dirname "$BASELINE")"
-        python3 - "$LYTA_DIR" "$BASELINE" <<'PY'
-import hashlib, json, os, sys
-root, out = sys.argv[1], sys.argv[2]
-skip = {"var/keys", "var/backups", ".git", "var/hermes-guard-events.jsonl", "var/integrity-baseline.json", "var/trust-anchor-pin.json"}
-files = []
-for dirpath, dirnames, filenames in os.walk(root):
-    for fn in filenames:
-        path = os.path.join(dirpath, fn)
-        rel = os.path.relpath(path, root)
-        if any(rel.startswith(s) or s in rel for s in skip):
-            continue
-        files.append(path)
-hashes = {f: hashlib.sha256(open(f, "rb").read()).hexdigest() for f in files if os.path.exists(f)}
-with open(out, "w") as f:
-    json.dump(hashes, f, indent=2)
-    f.write("\n")
-print(f"Restored integrity baseline to {out} ({len(hashes)} files)")
-PY
+        python3 "${LYTA_DIR}/scripts/integrity.py" create
         ;;
     self-heal)
-        BASELINE="${LYTA_DIR}/var/integrity-baseline.json"
         PIN="${LYTA_DIR}/var/trust-anchor-pin.json"
-        BACKUP_DIR="${LYTA_DIR}/var/backups"
-        if [[ ! -f "$BASELINE" ]]; then
-            echo "[FAIL] no integrity baseline; run 'lyta-shield restore-baseline'"
-            exit 1
+        TARGET_ARGS=()
+        if [[ "${1:-}" == "--file" ]]; then
+            if [[ -z "${2:-}" ]]; then
+                echo "Usage: lyta-shield self-heal --file <path>" >&2
+                exit 2
+            fi
+            TARGET_ARGS=("$2")
+        elif [[ -n "${1:-}" ]]; then
+            echo "Usage: lyta-shield self-heal [--file <path>]" >&2
+            exit 2
         fi
         if [[ -f "$PIN" ]]; then
             echo "[ALERT] trust anchor is pinned. self-heal is frozen."
-            echo "[INFO] run 'lyta-shield unlock' to allow upstream self-heal."
+            echo "[INFO] run 'lyta-shield unlock' to allow self-heal."
             exit 1
         fi
-        python3 - "$LYTA_DIR" "$BASELINE" "$BACKUP_DIR" <<'PY'
-import hashlib, json, os, subprocess, sys, tarfile, tempfile
-root, baseline, backup_dir = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(baseline) as f:
-    expected = json.load(f)
-fixed = 0
-upstream_failed = False
-for path, want_sha in expected.items():
-    if not os.path.exists(path):
-        print(f"[MISSING] {path} - cannot self-heal")
-        continue
-    got_sha = hashlib.sha256(open(path, "rb").read()).hexdigest()
-    if got_sha == want_sha:
-        continue
-    rel = os.path.relpath(path, root)
-    git_path = f"https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/{rel}"
-    print(f"[TAMPERED] {path}")
-    try:
-        import urllib.request
-        data = urllib.request.urlopen(git_path, timeout=30).read()
-        with open(path, "wb") as f:
-            f.write(data)
-        os.chmod(path, 0o755)
-        print(f"[FIXED] {path} from upstream")
-        fixed += 1
-        continue
-    except Exception as e:
-        print(f"[WARN] upstream restore failed for {path}: {e}")
-        upstream_failed = True
-    try:
-        backups = sorted([p for p in os.listdir(backup_dir) if p.endswith(".manifest")])
-        if not backups:
-            print(f"[FAIL] no signed backup available for {path}")
-            continue
-        latest = os.path.join(backup_dir, backups[-1])
-        print(f"[INFO] attempting signed backup restore from {latest}")
-        verify = subprocess.run([sys.executable, os.path.join(root, "scripts/verify-backup.py"), latest], capture_output=True, text=True)
-        if verify.returncode != 0:
-            print(f"[FAIL] backup verification failed:\n{verify.stdout}{verify.stderr}")
-            continue
-        manifest = json.loads(open(latest).read())
-        tar_path = os.path.join(backup_dir, manifest["tarball"])
-        with tempfile.TemporaryDirectory() as tmp:
-            with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extractall(tmp)
-            backup_file = os.path.join(tmp, rel)
-            if os.path.exists(backup_file):
-                with open(backup_file, "rb") as src:
-                    data = src.read()
-                with open(path, "wb") as dst:
-                    dst.write(data)
-                os.chmod(path, 0o755)
-                print(f"[FIXED] {path} from signed backup")
-                fixed += 1
-            else:
-                print(f"[FAIL] {rel} not found in signed backup")
-    except Exception as be:
-        print(f"[FAIL] backup restore failed for {path}: {be}")
-print(f"[DONE] self-healed {fixed} files")
-if upstream_failed:
-    print("[INFO] upstream was unavailable; signed backup was used")
-PY
+        python3 "${LYTA_DIR}/scripts/integrity.py" heal "${TARGET_ARGS[@]}"
         ;;
     reset)
         EVENT_LOG="${LYTA_EVENT_LOG:-${LYTA_DIR}/var/hermes-guard-events.jsonl}"
@@ -367,65 +284,12 @@ PY
         if [[ ! -x "$WRAPPER" ]]; then
             chmod +x "$WRAPPER" || true
         fi
-        python3 - "$ZSHRC" <<'PY'
-import sys, re
-path = sys.argv[1]
-text = open(path).read()
-pattern = re.compile(r"
-# LYTA Shield — hermes wrapper\[\s\S\]*?
-# END LYTA Shield — hermes wrapper
-")
-text = pattern.sub("
-", text)
-if re.search(r"
-hermes\s*\(\)\s*\{", text):
-    text = re.sub(
-        r"
-hermes\s*\(\)\s*\{[\s\S]*?
-\}",
-        """
-# LYTA Shield — hermes wrapper (auto-installed)
-LYTA_SHIELD_DIR="${LYTA_SHIELD_DIR:-/Users/test/Octra/lyta-shield}"
-LYTA_SHIELD_WRAPPER="${LYTA_SHIELD_DIR}/integrations/hermes-wrapper.sh"
-LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
-hermes() {
-  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
-    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
-  elif [[ "$LYTA_SHIELD_STRICT" == "1" ]]; then
-    echo "❌ LYTA Shield guard is missing or not executable: $LYTA_SHIELD_WRAPPER" >&2
-    echo "   Hermes is blocked because LYTA_SHIELD_STRICT=1." >&2
-    return 1
-  else
-    /Users/test/.local/bin/hermes "$@"
-  fi
-}
-# END LYTA Shield — hermes wrapper
-""",
-        text,
-    )
-else:
-    text = text.rstrip() + """
-
-# LYTA Shield — hermes wrapper (auto-installed)
-LYTA_SHIELD_DIR="${LYTA_SHIELD_DIR:-/Users/test/Octra/lyta-shield}"
-LYTA_SHIELD_WRAPPER="${LYTA_SHIELD_DIR}/integrations/hermes-wrapper.sh"
-LYTA_SHIELD_STRICT="${LYTA_SHIELD_STRICT:-1}"
-hermes() {
-  if [[ -x "$LYTA_SHIELD_WRAPPER" ]]; then
-    "$LYTA_SHIELD_WRAPPER" /Users/test/.local/bin/hermes "$@"
-  elif [[ "$LYTA_SHIELD_STRICT" == "1" ]]; then
-    echo "❌ LYTA Shield guard is missing or not executable: $LYTA_SHIELD_WRAPPER" >&2
-    echo "   Hermes is blocked because LYTA_SHIELD_STRICT=1." >&2
-    return 1
-  else
-    /Users/test/.local/bin/hermes "$@"
-  fi
-}
-# END LYTA Shield — hermes wrapper
-"""
-open(path, "w").write(text)
-PY
-        echo "LYTA Shield wrapper restored in $ZSHRC"
+        HERMES_BIN="${LYTA_HERMES_BIN:-$(command -v hermes || true)}"
+        if [[ -z "$HERMES_BIN" ]]; then
+            echo "[FAIL] Hermes executable not found; set LYTA_HERMES_BIN" >&2
+            exit 1
+        fi
+        python3 "${LYTA_DIR}/scripts/install-wrapper.py" "$ZSHRC" "$LYTA_DIR" "$HERMES_BIN"
         echo "Run 'source $ZSHRC' to apply."
         ;;
     key-health)
@@ -446,11 +310,12 @@ Commands:
   wrapper <cmd> [args]   run a command with output guarded
   status                 show last 5 events and overall health
   reset                  clear circuit breaker and rotate event log
-  self-heal              restore tampered files from upstream or signed backup
+  self-heal [--file PATH] restore all tampered files or one baseline-tracked file
   restore-baseline       recompute integrity hashes for the whole tree
   restore                re-install the Hermes wrapper into ~/.zshrc
   backup                 create a signed backup of the lyta-shield tree
   verify-backup [manifest] verify the latest (or specified) signed backup
+  rotate-backups [N] [--prune-legacy] keep N current backups and optionally remove legacy backups
   key-health             check backup signing keypair health
   lock [reason]          pin trust anchor to freeze baseline changes
   unlock                 remove trust anchor pin
@@ -467,6 +332,7 @@ Examples:
   lyta-shield restore-baseline
   lyta-shield backup
   lyta-shield verify-backup
+  lyta-shield rotate-backups 7 --prune-legacy
   lyta-shield key-health
   lyta-shield restore
   lyta-shield doctor

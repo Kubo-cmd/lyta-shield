@@ -41,7 +41,9 @@ One wrong paste can compromise your entire machine. LYTA Shield intercepts the d
 ### Terminal guard
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/install.sh | bash
+tar -xzf lyta-shield-v1.4.0.tar.gz
+cd lyta-shield-v1.4.0
+./install.sh
 ```
 
 Then start a new shell.
@@ -60,7 +62,7 @@ Then start a new shell.
 To push changes to GitHub, the stored token is no longer used. Use the SSH deploy key:
 
 1. Run `scripts/setup-deploy-key.sh` to generate a key.
-2. Add the printed public key at https://github.com/Kubo-cmd/lyta-shield/settings/keys/new as a **Deploy key** with write access.
+2. Add the printed public key in the repository **Settings → Deploy keys** page with write access.
 3. Run `git push origin main`.
 
 ## Usage
@@ -125,8 +127,8 @@ A single JSON rule engine powers the terminal CLI, the browser userscript, and A
 
 ```bash
 cd lyta-shield
-python3 tests/test_lyta_shield_rules.py
-python3 tests/lyta_shield_simulate.py
+python3 -m pytest -p no:cacheprovider -q
+python3 -m ruff check src/ scripts/ integrations/ tests/
 ```
 
 **Simulation:** 1,000,000 generated calls against a synthetic fuzz harness. This is a regression smoke test, not a real-world security guarantee. The 100% score means the current rules cover the templates we generate; it does not mean LYTA Shield has "solved" paste-jacking or that real attackers cannot bypass it.
@@ -144,26 +146,18 @@ Real validation requires red-team review, bug bounty, and production use.
 
 ## Integrations
 
-- **Hermes / AI output guard**: `integrations/hermes_guard.py` lets any AI assistant (including Hermes) check its own outputs before rendering them to the user. See [integrations/README.md](integrations/README.md).
-
----
-
-## Integrations
-
 - **Hermes / AI output guard**: `integrations/hermes_guard.py` checks AI assistant outputs before they reach the user. It supports `text`, `file`, `stdin`, `json`, and a shell wrapper `hermes-wrapper.sh`. There is also a chat-log audit script, `hermes-chat-audit.py`, and a CLI entrypoint `bin/lyta-shield`. See [integrations/README.md](integrations/README.md).
 - **CI**: Every PR and push to `main` runs adversarial bypass tests via GitHub Actions.
 
 ## Strict mode (no silent fallback)
 
-By default the `.zshrc` wrapper sets `LYTA_SHIELD_STRICT=1`. If the guard is missing or not executable, `hermes` is blocked with an error:
+By default the `.zshrc` wrapper sets `LYTA_SHIELD_STRICT=1`. If the guard or wrapped executable is missing, the command is blocked. Output is inspected even when the wrapped command exits nonzero. Dangerous or malformed guard results are never echoed back to the terminal.
 
 ```
-❌ LYTA Shield guard is missing or not executable: ...
-   Hermes is blocked because LYTA_SHIELD_STRICT=1.
-   Fix the guard path or set LYTA_SHIELD_STRICT=0 to bypass (not recommended).
+LYTA Shield guard or Hermes executable is unavailable.
 ```
 
-This prevents the common failure mode where a "defense in depth" wrapper silently falls back to the unguarded command after a file move or permission error.
+This prevents silent fallback and the failed-command bypass class.
 
 ### Self-healing
 
@@ -174,7 +168,23 @@ lyta-shield restore
 source ~/.zshrc
 ```
 
-This re-installs the wrapper function into `~/.zshrc` without duplicates.
+This resolves the active Hermes executable and atomically re-installs the wrapper without hard-coded home paths or duplicate functions.
+
+`lyta-shield self-heal` restores only protected, repository-relative files. It accepts bytes from the current Git object or a verified signed backup only when they match the pinned integrity baseline. It never downloads mutable branch content and never extracts an archive into the repository.
+
+### Signed backups
+
+```bash
+lyta-shield keygen
+lyta-shield backup
+lyta-shield verify-backup var/backups/<manifest>.json
+```
+
+The private key is required to be mode `0600`. Verification uses an external trust anchor at `~/.config/lyta-shield/trusted-backup.pub` (or `LYTA_BACKUP_PUBLIC_KEY`), not a public key supplied by the backup manifest. Archive names are basenames, signatures bind the schema, algorithm, filename, and digest, and restores read a single regular member without `extractall()`.
+
+### Metrics
+
+`scripts/export-metrics.py` binds to `127.0.0.1` by default. Remote binding is refused unless both `LYTA_METRICS_ALLOW_REMOTE=1` and `LYTA_METRICS_TOKEN` are set. Remote requests must send the configured token as an `Authorization: Bearer …` credential. Never place the token in documentation, logs, or command history.
 
 To opt out of strict mode:
 
@@ -186,14 +196,14 @@ Only do this if you are actively debugging the guard itself.
 
 ### CI guarantee
 
-The GitHub Actions workflow verifies that the wrapper, CLI, and doctor scripts are executable and that the doctor passes. A missing wrapper is a build failure.
+The GitHub Actions workflow runs the complete pytest suite and verifies that the wrapper, CLI, and doctor scripts are executable. A missing wrapper or skipped hardening regression is a build failure.
 
 ![LYTA Shield guard active](docs/lyta-shield-guard-active.png)
 
 
 ## Real validation
 
-The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please open a [GitHub Security Advisory](https://github.com/Kubo-cmd/lyta-shield/security/advisories) or add a test case to `tests/test_adversarial_bypass.py`.
+The 1,000,000-call simulation is a **synthetic fuzz regression test**, not a security guarantee. If you find a bypass or false positive, please use the repository's private Security Advisory form or add a test case to `tests/test_adversarial_bypass.py`.
 
 See [SECURITY.md](SECURITY.md) for the full disclosure policy.
 
@@ -207,6 +217,12 @@ lyta-shield check --json '{"role":"assistant","content":"..."}'
 lyta-shield audit session.jsonl
 lyta-shield export-session
 lyta-shield doctor
+lyta-shield restore-baseline
+lyta-shield self-heal
+lyta-shield keygen
+lyta-shield backup
+lyta-shield verify-backup var/backups/<manifest>.json
+lyta-shield rotate-backups 7 --prune-legacy
 ```
 
 ---
@@ -218,7 +234,7 @@ lyta-shield doctor
   title = {LYTA Shield: Paste-Jacking and AI Chat Defense},
   author = {LYTA.EXE},
   year = {2026},
-  url = {https://github.com/Kubo-cmd/lyta-shield}
+  url = {repository release page}
 }
 ```
 
@@ -226,7 +242,7 @@ lyta-shield doctor
 
 ## License
 
-MIT — Copyright (c) 2026 Kubo-cmd
+MIT — Copyright (c) 2026 LYTA-EXE
 
 ---
 

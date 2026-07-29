@@ -1,83 +1,92 @@
 #!/usr/bin/env python3
-"""
-Audit a saved Hermes chat log with LYTA Shield.
+"""Audit assistant output in JSON/JSONL chat exports with bounded parsing."""
 
-Reads a JSON/JSONL/txt file where each line is a JSON object with role/content keys,
-like:
-    {"role":"assistant","content":"..."}
-
-Example:
-    python3 hermes-chat-audit.py hermes-session.jsonl
-"""
+from __future__ import annotations
 
 import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, Iterator
 
-ROOT = Path(__file__).resolve().parent.parent
-GUARD = ROOT / "integrations" / "hermes_guard.py"
+from hermes_guard import guard_text
+
+MAX_LINE_BYTES = 2 * 1024 * 1024
+MAX_DEPTH = 8
+ASSISTANT_ROLES = {"assistant", "model", "agent"}
 
 
-def parse_records(path: Path):
-    text = path.read_text(encoding="utf-8", errors="ignore")
-    if path.suffix in (".jsonl", ".txt") or "\n" in text.strip():
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError:
-                continue
+def text_fragments(value: Any, depth: int = 0) -> Iterator[str]:
+    if depth > MAX_DEPTH:
+        return
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from text_fragments(item, depth + 1)
+    elif isinstance(value, dict):
+        for key in ("text", "content", "output_text", "message"):
+            if key in value:
+                yield from text_fragments(value[key], depth + 1)
+
+
+def assistant_content(record: Any) -> str:
+    if not isinstance(record, dict):
+        return ""
+    message = record.get("message")
+    role = record.get("role")
+    if isinstance(message, dict):
+        role = message.get("role", role)
+        content = message.get("content", record.get("content", ""))
     else:
-        data = json.loads(text)
-        if isinstance(data, list):
-            yield from data
-        else:
-            yield data
+        content = record.get("content", record.get("output", ""))
+    if str(role).lower() not in ASSISTANT_ROLES:
+        return ""
+    return "\n".join(fragment for fragment in text_fragments(content) if fragment)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Audit Hermes chat logs with LYTA Shield")
-    parser.add_argument("file", help="Chat log file (jsonl/txt/json)")
+def records(path: Path) -> Iterator[tuple[int, Any]]:
+    with path.open("rb") as handle:
+        prefix = handle.read(4096).lstrip()[:1]
+        handle.seek(0)
+        if prefix == b"[":
+            raw = handle.read(MAX_LINE_BYTES + 1)
+            if len(raw) > MAX_LINE_BYTES:
+                raise ValueError("chat export exceeds bounded JSON size; use JSONL")
+            parsed = json.loads(raw.decode("utf-8", errors="replace"))
+            values = parsed if isinstance(parsed, list) else [parsed]
+            for index, value in enumerate(values, 1):
+                yield index, value
+            return
+        for line_number, raw in enumerate(handle, 1):
+            if len(raw) > MAX_LINE_BYTES:
+                raise ValueError(f"line {line_number} exceeds size limit")
+            if raw.strip():
+                yield line_number, json.loads(raw.decode("utf-8", errors="replace"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", type=Path)
     args = parser.parse_args()
-
-    path = Path(args.file)
-    if not path.exists():
-        print(f"File not found: {path}", file=sys.stderr)
-        return 1
-
-    results = {"safe": 0, "suspicious": 0, "dangerous": 0}
-    for msg in parse_records(path):
-        if msg.get("role") != "assistant":
-            continue
-        res = subprocess.run(
-            [sys.executable, str(GUARD), "--json", json.dumps(msg)],
-            capture_output=True, text=True
-        )
-        try:
-            verdict = json.loads(res.stdout)
-        except json.JSONDecodeError:
-            continue
-        code = verdict.get("code", -1)
-        if code == 0:
-            results["safe"] += 1
-        elif code == 1:
-            results["suspicious"] += 1
-            print(f"[SUSPICIOUS] {', '.join(verdict.get('reasons', []))}")
-            print(f"  {msg.get('content', '')[:200]!r}")
-            print()
-        else:
-            results["dangerous"] += 1
-            print(f"[DANGEROUS] {', '.join(verdict.get('reasons', []))}")
-            print(f"  {msg.get('content', '')[:200]!r}")
-            print()
-
-    print(f"Audit complete: {results}")
-    return 0
+    highest = 0
+    scanned = 0
+    try:
+        for position, record in records(args.path):
+            content = assistant_content(record)
+            if not content:
+                continue
+            scanned += 1
+            result = guard_text(content)
+            highest = max(highest, int(result["code"]))
+            if result["code"]:
+                print(f"[{result['verdict']}] record {position}: {', '.join(result['reasons'])}")
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"[FAIL] chat audit: {error}", file=sys.stderr)
+        return 2
+    print(f"Audited {scanned} assistant messages")
+    return highest
 
 
 if __name__ == "__main__":
-    import subprocess
     raise SystemExit(main())

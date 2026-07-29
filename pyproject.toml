@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lyta-shield"
-version = "1.3.8"
+version = "1.4.0"
 description = "Output guard for AI assistants: detects paste-jacking, remote fetch-to-shell, and browser injection payloads."
 readme = "README.md"
 license = {text = "MIT"}
@@ -29,14 +29,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=9.0.3",
     "ruff>=0.6.0",
 ]
-
-[project.urls]
-Homepage = "https://github.com/Kubo-cmd/lyta-shield"
-Repository = "https://github.com/Kubo-cmd/lyta-shield"
-Issues = "https://github.com/Kubo-cmd/lyta-shield/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

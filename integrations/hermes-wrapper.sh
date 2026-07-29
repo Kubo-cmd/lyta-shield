@@ -42,51 +42,59 @@ set +e
 RC=$?
 set -e
 
-# If the wrapped command failed, there is no assistant output to guard (likely
-# argparse / usage error). Show the failure directly to avoid false positives.
-if [[ "$RC" -ne 0 ]]; then
-    GUARD_RC=0
-    GUARD_JSON='{"verdict":"SAFE","reasons":[],"warning":""}'
-    VERDICT="SAFE"
-    REASONS="[]"
-    cat "$OUT"
-    exit $RC
-fi
-
-# Always run the guard before showing anything.
+# Always run the guard before showing anything, including failed command output.
 set +e
 GUARD_JSON=$(python3 "$GUARD" --file "$OUT" 2>/dev/null)
 GUARD_RC=$?
 set -e
 
-# Extract verdict and reasons for the event log.
-VERDICT="SAFE"
-REASONS="[]"
-if [[ -n "$GUARD_JSON" ]]; then
-    VERDICT=$(printf '%s' "$GUARD_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('verdict','SAFE'))" 2>/dev/null || echo "SAFE")
-    REASONS=$(printf '%s' "$GUARD_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get('reasons',[])))" 2>/dev/null || echo "[]")
+# Parse guard output once. Invalid output is a fail-closed guard failure.
+PARSED=$(printf '%s' "$GUARD_JSON" | python3 -c 'import json,sys
+try:
+ d=json.load(sys.stdin); assert isinstance(d,dict)
+ print(d.get("verdict","DANGEROUS"))
+ print(json.dumps(d.get("reasons",[])))
+except Exception:
+ print("DANGEROUS")
+ print("[\"guard_protocol_error\"]")
+ raise SystemExit(2)' 2>/dev/null) || GUARD_RC=2
+VERDICT=$(printf '%s\n' "$PARSED" | python3 -c 'import sys; print(sys.stdin.readline().strip() or "DANGEROUS")')
+REASONS=$(printf '%s\n' "$PARSED" | python3 -c 'import sys; sys.stdin.readline(); print(sys.stdin.readline().strip() or "[\"guard_protocol_error\"]")')
+if [[ "$VERDICT" != "SAFE" && "$VERDICT" != "SUSPICIOUS" && "$VERDICT" != "DANGEROUS" ]]; then
+    VERDICT="DANGEROUS"
+    REASONS='["guard_protocol_error"]'
+    GUARD_RC=2
 fi
 
 # Append telemetry event.
-python3 - "$EVENT_LOG" "$RC" "$GUARD_RC" "$VERDICT" "$REASONS" "$*" <<'PY'
-import json, sys, datetime, os
-log, rc, guard_rc, verdict, reasons, cmd = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5], sys.argv[6]
+python3 - "$EVENT_LOG" "$RC" "$GUARD_RC" "$VERDICT" "$REASONS" "${1:-unknown}" "$#" <<'PY'
+import datetime, json, os, sys
+log, rc, guard_rc, verdict, reasons, executable, argc = (
+    sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4],
+    sys.argv[5], os.path.basename(sys.argv[6]), int(sys.argv[7]),
+)
 try:
     reasons = json.loads(reasons)
-except:
-    reasons = []
-host = os.environ.get("HOSTNAME", os.environ.get("COMPUTERNAME", "unknown"))
+except (TypeError, json.JSONDecodeError):
+    reasons = ["guard_protocol_error"]
 event = {
-    "ts": datetime.datetime.utcnow().isoformat() + "Z",
-    "host": host,
-    "command": cmd,
+    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "command": executable,
+    "argument_count": max(argc - 1, 0),
     "wrapped_exit": rc,
     "guard_exit": guard_rc,
     "verdict": verdict,
     "reasons": reasons,
 }
-with open(log, "a") as f:
-    f.write(json.dumps(event, separators=(",", ":")) + "\n")
+os.makedirs(os.path.dirname(log), exist_ok=True)
+if os.path.exists(log) and os.path.getsize(log) >= 1024 * 1024:
+    rotated = log + ".1"
+    if os.path.exists(rotated):
+        os.remove(rotated)
+    os.replace(log, rotated)
+with open(log, "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(event, separators=(",", ":")) + "\n")
+os.chmod(log, 0o600)
 PY
 
 # Open circuit breaker if this was a chat with DANGEROUS verdict and threshold is met.
@@ -126,13 +134,17 @@ PYCB
     fi
 fi
 
-if [[ $GUARD_RC -ne 0 ]]; then
-    echo ""
-    echo "⚠️  LYTA Shield: this assistant output triggered a guard rule."
-    echo "   Verdict:"
-    echo "$GUARD_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print('   ', d.get('verdict','?'), '-', ', '.join(d.get('reasons',[])))" || true
-    echo ""
+if [[ $GUARD_RC -ne 0 || "$VERDICT" == "DANGEROUS" ]]; then
+    echo "" >&2
+    echo "⚠️  LYTA Shield blocked guarded output." >&2
+    printf '%s' "$REASONS" | python3 -c 'import json,sys
+try: reasons=json.load(sys.stdin)
+except Exception: reasons=["guard_protocol_error"]
+print("   Reasons: " + (", ".join(str(item) for item in reasons) or "unspecified"))' >&2
+    echo "   Original output was suppressed." >&2
+    echo "" >&2
+    exit 2
 fi
 
 cat "$OUT"
-exit $RC
+exit "$RC"

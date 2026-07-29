@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         LYTA Shield - Browser Console Guard
-// @namespace    https://github.com/Kubo-cmd/lyta-shield
-// @version      1.1.0
+// @namespace    urn:lyta-shield
+// @version      1.2.0
 // @description  Intercepts dangerous paste in browser console and AI chat inputs
-// @author       Kubo-cmd / LYTA.EXE
+// @author       LYTA.EXE
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -88,14 +88,22 @@
         return { action: 'SAFE', code: 0, reasons: [], matched: null };
     }
 
-    function showWarning(target, verdict) {
+    function addTextBlock(parent, text, style) {
+        const node = document.createElement('div');
+        node.style.cssText = style;
+        node.textContent = text;
+        parent.appendChild(node);
+        return node;
+    }
+
+    function showWarning(target, verdict, previewText) {
         const color = verdict.code === 2 ? '#ff4444' : '#ffaa00';
         const title = verdict.code === 2 ? 'LYTA Shield: BLOCKED' : 'LYTA Shield: WARNING';
         const msg = verdict.code === 2
-            ? 'This code is dangerous. LYTA Shield blocked the paste.'
-            : 'This code is suspicious. Review before running.';
-        const reasons = verdict.reasons.map(r => `• ${r}`).join('\n');
-        const value = target.value || target.innerText || '';
+            ? 'This code is dangerous. LYTA Shield blocked the action.'
+            : 'This code is suspicious. Review before continuing.';
+        const reasons = verdict.reasons.map(reason => `• ${reason}`).join('\n');
+        const value = previewText ?? target.value ?? target.innerText ?? '';
 
         const div = document.createElement('div');
         div.style.cssText = `
@@ -105,17 +113,23 @@
             padding:16px 20px; max-width:500px; font-family:system-ui,sans-serif;
             font-size:14px; line-height:1.5; box-shadow:0 10px 40px rgba(0,0,0,0.8);
         `;
-        div.innerHTML = `
-            <div style="font-weight:bold; color:${color}; font-size:16px; margin-bottom:8px;">${title}</div>
-            <div style="margin-bottom:8px;">${msg}</div>
-            <pre style="background:#111; padding:8px; border-radius:6px; overflow:auto; max-height:120px; margin:8px 0;">${value.slice(0,200)}</pre>
-            <div style="color:#aaa; margin-bottom:12px;">${reasons}</div>
-            <div style="text-align:right;">
-                <button id="lyta-shield-dismiss" style="background:#333; color:#fff; border:1px solid #555; padding:6px 12px; border-radius:6px; cursor:pointer;">Dismiss</button>
-            </div>
-        `;
-        document.body.appendChild(div);
-        document.getElementById('lyta-shield-dismiss').onclick = () => div.remove();
+        addTextBlock(div, title, `font-weight:bold;color:${color};font-size:16px;margin-bottom:8px;`);
+        addTextBlock(div, msg, 'margin-bottom:8px;');
+        const preview = document.createElement('pre');
+        preview.style.cssText = 'background:#111;padding:8px;border-radius:6px;overflow:auto;max-height:120px;margin:8px 0;';
+        preview.textContent = String(value).slice(0, 200);
+        div.appendChild(preview);
+        addTextBlock(div, reasons, 'color:#aaa;margin-bottom:12px;white-space:pre-wrap;');
+        const actions = document.createElement('div');
+        actions.style.textAlign = 'right';
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.textContent = 'Dismiss';
+        dismiss.style.cssText = 'background:#333;color:#fff;border:1px solid #555;padding:6px 12px;border-radius:6px;cursor:pointer;';
+        dismiss.addEventListener('click', () => div.remove());
+        actions.appendChild(dismiss);
+        div.appendChild(actions);
+        (document.body || document.documentElement).appendChild(div);
     }
 
     // === AI CHAT INPUT GUARD ===
@@ -129,37 +143,59 @@
         'div[contenteditable="true"]',
     ];
 
-    function guardInput(event) {
+    function inputText(target) {
+        return target?.value ?? target?.innerText ?? '';
+    }
+
+    function blockEvent(event, target, text) {
+        const verdict = check(text);
+        if (verdict.code === 0) return true;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showWarning(target, verdict, text);
+        return false;
+    }
+
+    function guardPaste(event) {
         const target = event.target;
         if (!target) return;
-        const text = target.value || target.innerText || '';
-        const verdict = check(text);
-        if (verdict.code !== 0) {
-            event.preventDefault();
-            event.stopPropagation();
-            showWarning(target, verdict);
-            return false;
-        }
+        const clipboardText = event.clipboardData?.getData('text/plain') ?? '';
+        blockEvent(event, target, clipboardText);
+    }
+
+    function guardedInputWithin(container) {
+        if (!container) return null;
+        if (container.matches?.(AI_CHAT_SELECTORS.join(', '))) return container;
+        return container.querySelector?.(AI_CHAT_SELECTORS.join(', ')) ?? null;
+    }
+
+    function guardSubmission(event) {
+        const input = guardedInputWithin(event.target);
+        if (input) blockEvent(event, input, inputText(input));
+    }
+
+    function guardSubmitClick(event) {
+        const button = event.target?.closest?.('button, input[type="submit"], [role="button"]');
+        if (!button) return;
+        const input = guardedInputWithin(button.closest('form'));
+        if (input) blockEvent(event, input, inputText(input));
     }
 
     function attachInputGuards() {
         document.querySelectorAll(AI_CHAT_SELECTORS.join(', ')).forEach(el => {
             if (el.dataset.lytaShieldGuarded) return;
             el.dataset.lytaShieldGuarded = 'true';
-            el.addEventListener('paste', guardInput, true);
-            el.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    const text = e.target.value || e.target.innerText || '';
-                    const verdict = check(text);
-                    if (verdict.code !== 0) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        showWarning(e.target, verdict);
-                    }
+            el.addEventListener('paste', guardPaste, true);
+            el.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    blockEvent(event, event.target, inputText(event.target));
                 }
             }, true);
         });
     }
+
+    document.addEventListener('submit', guardSubmission, true);
+    document.addEventListener('click', guardSubmitClick, true);
 
     // === BROWSER CONSOLE GUARD ===
     const originalConsoleLog = console.log;

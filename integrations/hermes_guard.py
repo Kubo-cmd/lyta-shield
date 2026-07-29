@@ -15,8 +15,11 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
+
+MAX_INPUT_BYTES = int(os.environ.get("LYTA_GUARD_MAX_BYTES", 1024 * 1024))
 
 
 def _find_rules_engine() -> Path:
@@ -50,6 +53,15 @@ rules_engine = _load_engine()
 
 
 def guard_text(text: str) -> dict:
+    if len(text.encode("utf-8", errors="replace")) > MAX_INPUT_BYTES:
+        return {
+            "allowed": False,
+            "verdict": "DANGEROUS",
+            "code": 2,
+            "reasons": ["input_too_large"],
+            "matched": None,
+            "warning": "\n[LYTA Shield] This output was blocked because it exceeds the inspection limit.",
+        }
     v = rules_engine.check(text)
     return {
         "allowed": v.code == 0,
@@ -69,21 +81,52 @@ def guard_text(text: str) -> dict:
     }
 
 
+def _read_file_limited(path: Path) -> str:
+    if path.stat().st_size > MAX_INPUT_BYTES:
+        raise ValueError("input exceeds guard limit")
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _read_stdin_limited() -> str:
+    data = sys.stdin.buffer.read(MAX_INPUT_BYTES + 1)
+    if len(data) > MAX_INPUT_BYTES:
+        raise ValueError("input exceeds guard limit")
+    return data.decode("utf-8", errors="replace")
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("Usage: hermes_guard.py <text> | --file <path> | --json <json> | --stdin", file=sys.stderr)
         return 1
 
     arg = sys.argv[1]
-    if arg == "--file":
-        text = Path(sys.argv[2]).read_text(encoding="utf-8")
-    elif arg == "--json":
-        obj = json.loads(sys.argv[2])
-        text = obj.get("content", "") if isinstance(obj, dict) else obj
-    elif arg == "--stdin":
-        text = sys.stdin.read()
-    else:
-        text = " ".join(sys.argv[1:])
+    try:
+        if arg == "--file":
+            if len(sys.argv) != 3:
+                raise ValueError("--file requires exactly one path")
+            text = _read_file_limited(Path(sys.argv[2]))
+        elif arg == "--json":
+            if len(sys.argv) != 3:
+                raise ValueError("--json requires exactly one document")
+            obj = json.loads(sys.argv[2])
+            text = obj.get("content", "") if isinstance(obj, dict) else obj
+            if not isinstance(text, str):
+                text = json.dumps(text, ensure_ascii=False)
+        elif arg == "--stdin":
+            text = _read_stdin_limited()
+        else:
+            text = " ".join(sys.argv[1:])
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        result = {
+            "allowed": False,
+            "verdict": "DANGEROUS",
+            "code": 2,
+            "reasons": ["input_too_large" if "exceeds guard limit" in str(error) else "guard_input_error"],
+            "matched": None,
+            "warning": f"\n[LYTA Shield] Input was blocked: {error}",
+        }
+        print(json.dumps(result, indent=2))
+        return 2
 
     result = guard_text(text)
     print(json.dumps(result, indent=2))

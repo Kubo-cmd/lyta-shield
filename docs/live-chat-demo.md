@@ -33,4 +33,4 @@ The guard is not a post-hoc audit script. It sits between the model and the term
 
 ## Try to bypass it
 
-See [issue #2](https://github.com/Kubo-cmd/lyta-shield/issues/2) for the red-team challenge.
+See repository issue #2 for the red-team challenge.

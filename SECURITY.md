@@ -21,22 +21,23 @@ LYTA Shield protects against:
 Every critical file in the repository is protected by a signed backup chain:
 
 1. `scripts/backup-sign.py` creates a tarball of the repository tree, computes SHA-256, and signs the backup with Ed25519.
-2. `scripts/verify-backup.py` verifies the SHA-256 and signature against the public key recorded in the manifest.
+2. `scripts/verify-backup.py` reconstructs the signed message and verifies it against the external trust anchor. A manifest can never select its own verification key.
 3. `bin/lyta-shield backup` creates a new signed backup; `bin/lyta-shield verify-backup` checks the latest.
-4. If upstream GitHub is unavailable during self-heal, the latest signed backup is used as a fallback restore source.
+4. Self-heal accepts repository Git-object bytes or a verified backup member only when the bytes match the pinned per-file integrity digest. It never downloads mutable branch content or calls `extractall()`.
 
 ### Keys
 
 - `var/keys/backup-sign.nacl` — Ed25519 private key (keep secret, never commit).
-- `var/keys/backup-sign.nacl.pub` — Ed25519 public key (distributed with the manifest).
+- `var/keys/backup-sign.nacl.pub` — local Ed25519 public key.
+- `~/.config/lyta-shield/trusted-backup.pub` — external verification trust anchor. Override with `LYTA_BACKUP_PUBLIC_KEY` when isolation requires another path.
 
-Key rotation: `scripts/rotate-backup-key.py` generates a new keypair and re-signs the latest backup.
+The private key must be one regular file with exact mode `0600`; symlinks and partial keypairs are rejected. Explicit rotation with `scripts/rotate-backup-key.py` updates the keypair and trust anchor. Create a fresh backup immediately afterward because backups signed by the retired key no longer verify against the new anchor.
 
 ## Self-heal and integrity
 
-- `bin/lyta-shield restore-baseline` creates a SHA-256 baseline for every tracked file.
+- `bin/lyta-shield restore-baseline` atomically creates a repository-relative SHA-256 baseline for the protected file set.
 - `bin/lyta-shield doctor` checks the baseline, backup status, and circuit breaker.
-- `bin/lyta-shield self-heal` restores tampered files from GitHub upstream or the signed backup fallback.
+- `bin/lyta-shield self-heal` atomically restores exact baseline bytes and preserves the trusted file mode.
 - `bin/lyta-shield incident` logs security events to `var/incidents/`.
 
 ## Operational cadence

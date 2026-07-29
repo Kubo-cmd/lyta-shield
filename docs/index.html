@@ -153,11 +153,11 @@
         Open-source defense against paste-jacking, malicious terminal commands, browser console attacks, and AI chat prompt injection.
       </h2>
       <div class="buttons is-centered mt-5">
-        <a class="button is-lyta is-medium" href="https://github.com/Kubo-cmd/lyta-shield">
+        <a class="button is-lyta is-medium" href="#install">
           <span class="icon"><i class="fab fa-github"></i></span>
-          <span>GitHub</span>
+          <span>Release</span>
         </a>
-        <a class="button is-ghost is-medium" href="https://github.com/Kubo-cmd/lyta-shield#install">
+        <a class="button is-ghost is-medium" href="#install">
           <span class="icon"><i class="fas fa-download"></i></span>
           <span>Install</span>
         </a>
@@ -224,11 +224,11 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section" id="install">
   <div class="container is-max-desktop">
     <h2 class="title is-3 section-title has-text-centered">One-line install</h2>
     <div class="code-block">
-      curl -fsSL https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/install.sh | bash
+      tar -xzf lyta-shield-v1.4.0.tar.gz &amp;&amp; cd lyta-shield-v1.4.0 &amp;&amp; ./install.sh
     </div>
     <div class="has-text-centered mt-4">
       <span class="badge">zsh</span>
@@ -288,7 +288,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section" id="integrations">
   <div class="container is-max-desktop">
     <h2 class="title is-3 section-title has-text-centered">Hermes / AI output guard</h2>
     <div class="columns is-centered">
@@ -299,14 +299,14 @@
           Dangerous outputs are blocked; suspicious ones are flagged.
         </p>
         <p class="mt-2">
-          <a href="https://github.com/Kubo-cmd/lyta-shield/tree/main/integrations">View integration</a>
+          <a href="#integrations">View integration</a>
         </p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section">
+<section class="section" id="real-validation">
   <div class="container is-max-desktop">
     <h2 class="title is-3 section-title has-text-centered">Red team & reviewers wanted</h2>
     <div class="columns is-centered">
@@ -315,7 +315,7 @@
           The 1M call score is a synthetic fuzz regression test, not a security guarantee.
           Real validation comes from independent review, bug bounty, and production use.
           If you find a bypass or false positive, please open a
-          <a href="https://github.com/Kubo-cmd/lyta-shield/security/advisories">GitHub Security Advisory</a>
+          <span>private repository Security Advisory</span>
           or add a test case to
           <code>tests/test_adversarial_bypass.py</code>.
         </p>
@@ -330,9 +330,9 @@
     <div class="citation">
 @software{lytashield2024,<br>
 &nbsp;&nbsp;title = {LYTA Shield: Paste-Jacking and AI Chat Defense},<br>
-&nbsp;&nbsp;author = {Kubo},<br>
+&nbsp;&nbsp;author = {LYTA.EXE},<br>
 &nbsp;&nbsp;year = {2026},<br>
-&nbsp;&nbsp;url = {https://github.com/Kubo-cmd/lyta-shield}<br>
+&nbsp;&nbsp;url = {repository release page}<br>
 }
     </div>
   </div>
@@ -341,12 +341,12 @@
 <footer class="footer">
   <div class="container is-max-desktop has-text-centered">
     <p>
-      Built by <a href="https://x.com/Kubo100x">LYTA.EXE</a> after a real paste-jacking incident.
+      Built by LYTA.EXE after a real paste-jacking incident.
       MIT License.
     </p>
     <p class="mt-2">
-      <a href="https://github.com/Kubo-cmd/lyta-shield">GitHub</a> ·
-      <a href="https://github.com/Kubo-cmd/lyta-shield/issues">Issues</a>
+      <a href="#install">Install</a> ·
+      <a href="#real-validation">Security</a>
     </p>
   </div>
 </footer>

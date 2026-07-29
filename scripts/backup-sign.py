@@ -1,99 +1,97 @@
 #!/usr/bin/env python3
-"""Sign a backup tarball of the lyta-shield tree with Ed25519 (NaCl).
+"""Create a compressed backup and a trust-anchored Ed25519 manifest."""
 
-Usage:
-    python3 scripts/backup-sign.py [backup_dir]
-
-Creates:
-    backup_dir/lyta-shield-YYYYmmddHHMMSS.tar.gz
-    backup_dir/lyta-shield-YYYYmmddHHMMSS.tar.gz.sig
-    backup_dir/lyta-shield-YYYYmmddHHMMSS.tar.gz.manifest
-
-Keys:
-    Private key: var/keys/backup-sign.nacl
-    Public key:  var/keys/backup-sign.nacl.pub
-"""
+from __future__ import annotations
 
 import base64
+import datetime as dt
 import hashlib
 import json
-import subprocess
-import sys
+import os
+import stat
 import tarfile
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
+from backup_common import (
+    ALGORITHM,
+    SCHEMA_VERSION,
+    canonical_message,
+    read_regular_file,
+    sha256_regular_file,
+)
 from nacl.signing import SigningKey
 
-LYTA_DIR = Path(__file__).resolve().parent.parent
-KEY = LYTA_DIR / "var" / "keys" / "backup-sign.nacl"
-PUB = LYTA_DIR / "var" / "keys" / "backup-sign.nacl.pub"
+ROOT = Path(__file__).resolve().parent.parent
+BACKUP_DIR = ROOT / "var" / "backups"
+PRIVATE_KEY = ROOT / "var" / "keys" / "backup-sign.nacl"
+PUBLIC_KEY = ROOT / "var" / "keys" / "backup-sign.nacl.pub"
+
+EXCLUDED_PARTS = {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}
+EXCLUDED_NAMES = {".env", "hermes-guard-events.jsonl"}
+EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".key", ".pem"}
 
 
-def main():
-    backup_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else LYTA_DIR / "var" / "backups"
-    backup_dir.mkdir(parents=True, exist_ok=True)
+def include_path(path: Path) -> bool:
+    relative = path.relative_to(ROOT)
+    if any(part in EXCLUDED_PARTS for part in relative.parts):
+        return False
+    if relative.parts[:2] in {("var", "backups"), ("var", "keys")}:
+        return False
+    if path.name in EXCLUDED_NAMES or path.suffix.lower() in EXCLUDED_SUFFIXES:
+        return False
+    return True
 
-    if not KEY.exists():
-        print(f"[WARN] signing key not found: {KEY}", file=sys.stderr)
-        print("[INFO] generating new Ed25519 keypair automatically", file=sys.stderr)
-        subprocess.run([sys.executable, str(LYTA_DIR / "scripts" / "generate-backup-key.py")], check=True)
 
-    signing_key = SigningKey(KEY.read_bytes())
-    verify_key = signing_key.verify_key
+def add_tree(archive: tarfile.TarFile) -> None:
+    for path in sorted(ROOT.rglob("*")):
+        if not include_path(path):
+            continue
+        relative = path.relative_to(ROOT)
+        archive.add(path, arcname=Path("lyta-shield") / relative, recursive=False)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    base = backup_dir / f"lyta-shield-{timestamp}"
-    tar_path = Path(f"{base}.tar.gz")
-    sig_path = Path(f"{base}.tar.gz.sig")
-    manifest_path = Path(f"{base}.manifest")
 
-    # Build tarball of everything except var/backups, var/keys, .git, and event logs
-    skip = {"var/backups", "var/keys", ".git", "var/hermes-guard-events.jsonl"}
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".tar.gz") as tmp:
-        tmp_path = Path(tmp.name)
-    try:
-        with tarfile.open(tmp_path, "w:gz") as tar:
-            for f in sorted(LYTA_DIR.rglob("*")):
-                if f.is_dir():
-                    continue
-                rel = f.relative_to(LYTA_DIR)
-                rel_str = str(rel)
-                if any(rel_str.startswith(s) or s in rel_str for s in skip):
-                    continue
-                tar.add(f, arcname=rel_str)
+def main() -> int:
+    if not PRIVATE_KEY.exists() or not PUBLIC_KEY.exists():
+        raise SystemExit("missing signing keypair; run scripts/generate-backup-key.py")
+    private_info = PRIVATE_KEY.lstat()
+    if not stat.S_ISREG(private_info.st_mode) or private_info.st_nlink != 1:
+        raise SystemExit("private signing key must be one regular file")
+    if stat.S_IMODE(private_info.st_mode) != 0o600:
+        raise SystemExit("private signing key permissions must be 0600")
 
-        # Compute SHA-256 of tarball
-        digest = hashlib.sha256(tmp_path.read_bytes()).hexdigest()
+    signing_key = SigningKey(read_regular_file(PRIVATE_KEY, 32))
+    public_key = read_regular_file(PUBLIC_KEY, 32)
+    if signing_key.verify_key.encode() != public_key:
+        raise SystemExit("public and private signing keys do not match")
 
-        # Sign the digest (include algorithm and filename in the signed message)
-        sign_message = f"lyta-shield-backup|sha256|{digest}|{tar_path.name}".encode()
-        signature = signing_key.sign(sign_message).signature
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    archive_path = BACKUP_DIR / f"lyta-shield-{stamp}.tar.gz"
+    with tarfile.open(archive_path, "x:gz") as archive:
+        add_tree(archive)
+    os.chmod(archive_path, 0o600)
 
-        # Move into place
-        tmp_path.rename(tar_path)
-        sig_path.write_bytes(signature)
+    digest = sha256_regular_file(archive_path)
+    manifest = {
+        "version": SCHEMA_VERSION,
+        "algorithm": ALGORITHM,
+        "archive": archive_path.name,
+        "sha256": digest,
+        "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "source": ".",
+        "public_key_fingerprint": hashlib.sha256(public_key).hexdigest(),
+    }
+    manifest["signature"] = base64.b64encode(
+        signing_key.sign(canonical_message(manifest)).signature
+    ).decode("ascii")
 
-        # Write manifest
-        manifest = {
-            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-            "source": str(LYTA_DIR),
-            "tarball": tar_path.name,
-            "sha256": digest,
-            "signature": sig_path.name,
-            "public_key": base64.b64encode(verify_key.encode()).decode(),
-            "sign_message": sign_message.decode(),
-        }
-        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
-
-        print(f"[OK] backup: {tar_path}")
-        print(f"[OK] signature: {sig_path}")
-        print(f"[OK] manifest: {manifest_path}")
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink()
+    manifest_path = archive_path.with_suffix(archive_path.suffix + ".manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    os.chmod(manifest_path, 0o600)
+    print(archive_path)
+    print(manifest_path)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

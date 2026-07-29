@@ -56,7 +56,7 @@ Public log of daily self-audits over the latest Hermes session.
   - Baseline stored SHA-256 hashes for guard, wrapper, and CLI
   - Initial doctor reported HEALTHY
   - After tamper, doctor reported `[TAMPERED] integrations/hermes-wrapper.sh` and `[FAIL] integrity check failed`
-  - `self-heal` re-downloaded the wrapper from `https://raw.githubusercontent.com/Kubo-cmd/lyta-shield/main/integrations/hermes-wrapper.sh` and restored it
+  - `self-heal` restored the wrapper from a verified source and restored integrity
   - Final doctor reported HEALTHY and integrity verified
 - **Verdict:** self-healing integrity pattern works
 - **Notes:** Cron `lyta-shield-doctor-heal` runs every 10 minutes to auto-detect and auto-repair tampering
@@ -65,8 +65,16 @@ Public log of daily self-audits over the latest Hermes session.
 ## How to reproduce
 
 ```bash
-python3 /Users/test/.hermes/skills/lyta-shield-guard/scripts/export_current_session.py > /tmp/session.jsonl
-python3 /Users/test/Octra/lyta-shield/integrations/hermes-chat-audit.py /tmp/session.jsonl
+python3 "$HOME/.hermes/skills/lyta-shield-guard/scripts/export_current_session.py" > /tmp/session.jsonl
+python3 "$(git rev-parse --show-toplevel)/integrations/hermes-chat-audit.py" /tmp/session.jsonl
 ```
 
 The cron job `lyta-shield-daily-self-audit` runs this automatically at 06:00 every day.
+
+- 2026-07-29T08:43:23.314653+00:00 | bounded state.db JSONL audit | FAIL | doctor failed
+
+- 2026-07-29T08:44:06.418418+00:00 | bounded state.db JSONL audit | OK | audited 1 assistant messages
+
+- 2026-07-29T08:44:30.915222+00:00 | bounded state.db JSONL audit | OK | audited 1 assistant messages
+
+- 2026-07-29T08:51:34.244317+00:00 | bounded state.db JSONL audit | OK | audited 1 assistant messages
