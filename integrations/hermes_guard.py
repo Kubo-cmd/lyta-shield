@@ -81,6 +81,32 @@ def guard_text(text: str) -> dict:
     }
 
 
+def _json_content(obj: object) -> str:
+    if not isinstance(obj, dict):
+        raise ValueError("JSON guard input must be an object")
+    candidate = obj
+    if "message" in candidate:
+        candidate = candidate["message"]
+        if not isinstance(candidate, dict):
+            raise ValueError("message must be an object")
+    if "content" not in candidate:
+        raise ValueError("JSON guard input has no content")
+    content = candidate["content"]
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+            else:
+                raise ValueError("unsupported content item")
+        return "\n".join(parts)
+    raise ValueError("content must be text or a text-part list")
+
+
 def _read_file_limited(path: Path) -> str:
     if path.stat().st_size > MAX_INPUT_BYTES:
         raise ValueError("input exceeds guard limit")
@@ -108,10 +134,7 @@ def main() -> int:
         elif arg == "--json":
             if len(sys.argv) != 3:
                 raise ValueError("--json requires exactly one document")
-            obj = json.loads(sys.argv[2])
-            text = obj.get("content", "") if isinstance(obj, dict) else obj
-            if not isinstance(text, str):
-                text = json.dumps(text, ensure_ascii=False)
+            text = _json_content(json.loads(sys.argv[2]))
         elif arg == "--stdin":
             text = _read_stdin_limited()
         else:

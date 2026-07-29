@@ -1,5 +1,5 @@
 {
-  "version": "1.4.2",
+  "version": "1.5.0",
   "blocked": [
     {
       "id": "base64_decode_to_shell",
@@ -33,17 +33,17 @@
     },
     {
       "id": "remote_fetch_to_shell",
-      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*(ba)?sh\\b",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*(?:\\/bin\\/)?(?:ba|z)?sh\\b",
       "description": "Remote fetch piped to shell"
     },
     {
       "id": "remote_fetch_to_shell2",
-      "pattern": "\\b(curl|wget|fetch)\\b.*?(?:\\s+\\|\\s+(sudo\\s+)?(ba)?sh|(?:bash|sh)\\s+-c)",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?(?:\\s+\\|\\s+(sudo\\s+)?(?:\\/bin\\/)?(?:ba|z)?sh|(?:bash|sh|zsh)\\s+-c)",
       "description": "Remote fetch executed in shell"
     },
     {
       "id": "remote_fetch_to_shell_quoted",
-      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*['\"]?(sudo\\s+)?(ba)?sh['\"]?\\b",
+      "pattern": "\\b(curl|wget|fetch)\\b.*?\\|\\s*['\"]?(sudo\\s+)?(?:\\/bin\\/)?(?:ba|z)?sh['\"]?\\b",
       "description": "Remote fetch to quoted shell"
     },
     {
@@ -155,6 +155,11 @@
       "id": "destructive_command2",
       "pattern": "\\b(rm\\s+-rf\\s+/|rm\\s+-rf\\s+~|rm\\s+-rf\\s+\\$HOME)\\s*$",
       "description": "Destructive command"
+    },
+    {
+      "id": "destructive_command_option_permutation",
+      "pattern": "\\brm\\s+-(?=[a-z]*f)(?=[a-z]*r)[a-z]+\\s+(?:/|~|\\$HOME)\\s*$",
+      "description": "Destructive command with reordered options"
     },
     {
       "id": "destructive_command3",
@@ -367,7 +372,7 @@
     },
     {
       "id": "homebrew_raw_installer",
-      "pattern": "https://raw\\.githubusercontent\\.com/Homebrew/install/.*install",
+      "pattern": "https://raw\\.githubusercontent\\.com/Homebrew/install/(?:HEAD|master)/install\\.sh",
       "description": "Homebrew official raw installer"
     },
     {
@@ -382,12 +387,12 @@
     },
     {
       "id": "homebrew_official_installer",
-      "pattern": "https://brew\\.sh/.*install",
+      "pattern": "https://brew\\.sh/install",
       "description": "Homebrew official installer"
     },
     {
       "id": "hermes_github_raw_installer",
-      "pattern": "https://raw\\.githubusercontent\\.com/NousResearch/",
+      "pattern": "https://raw\\.githubusercontent\\.com/NousResearch/hermes-agent/(?:main|master)/install\\.sh",
       "description": "Hermes GitHub raw installer"
     },
     {

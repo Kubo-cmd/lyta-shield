@@ -18,9 +18,13 @@ if [[ -n "$ZSH_VERSION" ]]; then
         [[ -n "$LYTA_SHIELD_DISABLE" ]] && return 0
         local cmd="$1"
         [[ -z "$cmd" ]] && return 0
-        [[ -f "$LYTA_SHIELD_BIN" ]] || return 0
+        if [[ ! -f "$LYTA_SHIELD_BIN" || -L "$LYTA_SHIELD_BIN" ]]; then
+            echo "[LYTA Shield] Guard unavailable or unsafe; command cancelled." >&2
+            kill -INT $$
+            return 1
+        fi
         local result
-        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
+        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>&1)
         local code=$?
         if [[ $code -eq 2 ]]; then
             echo ""
@@ -44,6 +48,11 @@ if [[ -n "$ZSH_VERSION" ]]; then
                 return 1
             fi
             echo ""
+        elif [[ $code -ne 0 ]]; then
+            echo "[LYTA Shield] Guard failed with exit $code; command cancelled." >&2
+            [[ -n "$result" ]] && echo "$result" | sed 's/^/  /' >&2
+            kill -INT $$
+            return 1
         fi
         return 0
     }
@@ -55,9 +64,13 @@ if [[ -n "$BASH_VERSION" ]]; then
         [[ -n "$LYTA_SHIELD_DISABLE" ]] && return 0
         local cmd="$BASH_COMMAND"
         [[ -z "$cmd" ]] && return 0
-        [[ -f "$LYTA_SHIELD_BIN" ]] || return 0
+        if [[ ! -f "$LYTA_SHIELD_BIN" || -L "$LYTA_SHIELD_BIN" ]]; then
+            echo "[LYTA Shield] Guard unavailable or unsafe; command cancelled." >&2
+            kill -INT $$
+            return 1
+        fi
         local result
-        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>/dev/null)
+        result=$(LYTA_SHIELD_RULES="$LYTA_SHIELD_RULES" python3 "$LYTA_SHIELD_BIN" --check "$cmd" 2>&1)
         local code=$?
         if [[ $code -eq 2 ]]; then
             echo ""
@@ -77,6 +90,11 @@ if [[ -n "$BASH_VERSION" ]]; then
                 kill -INT $$
             fi
             echo ""
+        elif [[ $code -ne 0 ]]; then
+            echo "[LYTA Shield] Guard failed with exit $code; command cancelled." >&2
+            [[ -n "$result" ]] && echo "$result" | sed 's/^/  /' >&2
+            kill -INT $$
+            return 1
         fi
     }
     trap 'lyta_shield_bash' DEBUG

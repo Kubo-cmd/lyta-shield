@@ -60,20 +60,41 @@ def _command_version(command: list[str]) -> str | None:
     return value[0] if result.returncode == 0 and value else None
 
 
+def _trusted_executable(path: str | Path) -> Path | None:
+    expected = os.environ.get("CODEX_SECURITY_SHA256", "").lower()
+    if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+        return None
+    candidate = Path(path).expanduser()
+    if not candidate.is_file() or not os.access(candidate, os.X_OK):
+        return None
+    resolved = candidate.resolve()
+    digest = hashlib.sha256()
+    try:
+        with resolved.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return resolved if digest.hexdigest() == expected else None
+
+
 def resolve_codex_security(repository: Path | None = None) -> str | None:
     configured = os.environ.get("CODEX_SECURITY_BIN")
     if configured:
-        candidate = Path(configured).expanduser()
-        return str(candidate.resolve()) if candidate.is_file() and os.access(candidate, os.X_OK) else None
+        candidate = _trusted_executable(configured)
+        return str(candidate) if candidate else None
 
     installed = shutil.which("codex-security")
     if installed:
-        return installed
+        candidate = _trusted_executable(installed)
+        if candidate:
+            return str(candidate)
 
     if repository is not None:
         candidate = repository / "node_modules" / ".bin" / "codex-security"
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return str(candidate.resolve())
+        trusted = _trusted_executable(candidate)
+        if trusted:
+            return str(trusted)
     return None
 
 
@@ -86,6 +107,7 @@ def doctor(repository: Path | None = None) -> dict[str, Any]:
         "node_22_or_later": bool(node_version and _version_tuple(node_version) >= (22,)),
         "python_3_10_or_later": sys.version_info >= (3, 10),
         "codex_security_installed": cli is not None,
+        "codex_security_digest_pinned": cli is not None,
         "codex_security_exact_version": cli_version == UPSTREAM_PACKAGE_VERSION,
     }
     return {
@@ -150,6 +172,10 @@ def run_dry_run(command: list[str]) -> subprocess.CompletedProcess[str]:
     """Execute only a command produced by build_dry_run_command."""
     if len(command) < 8 or Path(command[0]).name not in {"codex-security", "codex-security.cmd"}:
         raise ValueError("Refusing unexpected Codex Security executable")
+    trusted = _trusted_executable(command[0])
+    if trusted is None:
+        raise ValueError("Refusing unpinned or digest-mismatched Codex Security executable")
+    command = [str(trusted), *command[1:]]
     if command[1] != "scan" or command.count("--dry-run") != 1 or command.count("--json") != 1:
         raise ValueError("Refusing to run Codex Security without the required dry-run flags")
     if command.count("--output-dir") != 1 or command.count("--auth") != 1:

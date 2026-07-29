@@ -1,0 +1,126 @@
+name: Reproducible release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-build.lock
+
+      - name: Verify immutable tag and synchronized version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git describe --tags --exact-match HEAD)" = "${GITHUB_REF_NAME}"
+          python3 - <<'PY'
+          import os, pathlib, tomllib
+          version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          expected = f"v{version}"
+          if os.environ["GITHUB_REF_NAME"] != expected:
+              raise SystemExit(f"tag/version mismatch: {os.environ['GITHUB_REF_NAME']} != {expected}")
+          PY
+          test -z "$(git status --porcelain)"
+
+      - name: Install hash-locked release toolchain
+        run: python3 -m pip install --require-hashes -r requirements-build.lock
+
+      - name: Test and lint the tag snapshot
+        run: |
+          python3 -m pytest -q
+          python3 -m ruff check src/ scripts/ integrations/ tests/
+          node --check extensions/browser/lyta_shield_console_guard.user.js
+          bash -n install.sh integrations/hermes-wrapper.sh src/lyta_shield_hook.sh
+
+      - name: Build twice from independent clean snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          mkdir -p /tmp/lyta-build-a /tmp/lyta-build-b
+          git archive HEAD | tar -x -C /tmp/lyta-build-a
+          git archive HEAD | tar -x -C /tmp/lyta-build-b
+          (cd /tmp/lyta-build-a && python3 -m build --no-isolation --wheel --sdist --outdir dist)
+          (cd /tmp/lyta-build-b && python3 -m build --no-isolation --wheel --sdist --outdir dist)
+          cmp /tmp/lyta-build-a/dist/*.whl /tmp/lyta-build-b/dist/*.whl
+          cmp /tmp/lyta-build-a/dist/*.tar.gz /tmp/lyta-build-b/dist/*.tar.gz
+
+      - name: Smoke-test wheel and source distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/lyta-wheel
+          /tmp/lyta-wheel/bin/python -m pip install --require-hashes -r requirements-build.lock
+          /tmp/lyta-wheel/bin/python -m pip install --no-deps /tmp/lyta-build-a/dist/*.whl
+          (cd /tmp && /tmp/lyta-wheel/bin/lyta-shield --check 'printf safe')
+          python3 -m venv /tmp/lyta-sdist
+          /tmp/lyta-sdist/bin/python -m pip install --require-hashes -r requirements-build.lock
+          /tmp/lyta-sdist/bin/python -m pip install --no-deps --no-build-isolation /tmp/lyta-build-a/dist/*.tar.gz
+          (cd /tmp && /tmp/lyta-sdist/bin/lyta-shield --check 'printf safe')
+
+      - name: Assemble deterministic release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          mkdir release
+          cp /tmp/lyta-build-a/dist/* release/
+          git archive --format=tar.gz --prefix="lyta-shield-${GITHUB_REF_NAME}/" -o "release/lyta-shield-${GITHUB_REF_NAME}-source.tar.gz" HEAD
+          python3 scripts/generate-release-sbom.py \
+            --output "release/lyta-shield-${GITHUB_REF_NAME}-sbom.cdx.json" \
+            --commit "${GITHUB_SHA}" \
+            --tag "${GITHUB_REF_NAME}"
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root = Path("release")
+          lines = []
+          for path in sorted(root.iterdir(), key=lambda item: item.name):
+              if path.name != "SHA256SUMS" and path.is_file():
+                  lines.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}")
+          (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+          (cd release && shasum -a 256 -c SHA256SUMS)
+          python3 -m json.tool "release/lyta-shield-${GITHUB_REF_NAME}-sbom.cdx.json" >/dev/null
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: "release/*"
+
+      - name: Retain verified release bundle
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: lyta-shield-${{ github.ref_name }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --title "LYTA Shield ${GITHUB_REF_NAME}" --generate-notes

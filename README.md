@@ -41,8 +41,8 @@ One wrong paste can compromise your entire machine. LYTA Shield intercepts the d
 ### Terminal guard
 
 ```bash
-tar -xzf lyta-shield-v1.4.2.tar.gz
-cd lyta-shield-v1.4.2
+tar -xzf lyta-shield-v1.5.0.tar.gz
+cd lyta-shield-v1.5.0
 ./install.sh
 ```
 
@@ -79,6 +79,18 @@ python3 ~/.config/lyta-shield/lyta_shield.py --batch ~/.zsh_history
 # Bypass (only when you are sure)
 LYTA_SHIELD_DISABLE=1 curl -fsSL https://example.com/install.sh | bash
 ```
+
+### Optional Codex Security bridge
+
+The bridge fails closed unless the reviewed local scanner binary is pinned by SHA-256:
+
+```bash
+export CODEX_SECURITY_BIN="$(command -v codex-security)"
+export CODEX_SECURITY_SHA256="$(shasum -a 256 "$CODEX_SECURITY_BIN" | cut -d ' ' -f 1)"
+python3 integrations/codex_security_bridge.py doctor
+```
+
+Recalculate the pin only after intentionally reviewing or upgrading the scanner installation.
 
 ### Browser
 

@@ -5,29 +5,30 @@ set -euo pipefail
 
 CONFIG_DIR="${HOME}/.config/lyta-shield"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REMOTE_BASE="${LYTA_SHIELD_REPO_URL:-}"
-
 echo "[LYTA Shield] Installing to $CONFIG_DIR..."
 mkdir -p "$CONFIG_DIR"
+STAGE_DIR="$(mktemp -d "$CONFIG_DIR/.install.XXXXXX")"
+trap 'rm -rf "$STAGE_DIR"' EXIT
 
 install_file() {
     local relative="$1"
-    local destination="$CONFIG_DIR/$(basename "$relative")"
-    if [[ -f "$SCRIPT_DIR/$relative" ]]; then
-        cp "$SCRIPT_DIR/$relative" "$destination"
-    elif [[ -n "$REMOTE_BASE" ]]; then
-        curl -fsSL "${REMOTE_BASE%/}/$relative" -o "$destination"
-    else
-        echo "[LYTA Shield] Missing $relative. Run from an extracted release or set LYTA_SHIELD_REPO_URL." >&2
+    local source="$SCRIPT_DIR/$relative"
+    local destination="$STAGE_DIR/$(basename "$relative")"
+    if [[ ! -f "$source" || -L "$source" ]]; then
+        echo "[LYTA Shield] Missing or unsafe $relative. Run from a verified release archive or repository checkout." >&2
         exit 1
     fi
+    cp "$source" "$destination"
 }
 
 for file in src/rules.json src/rules_engine.py src/lyta_shield.py src/lyta_shield_hook.sh; do
     install_file "$file"
 done
 
-chmod +x "$CONFIG_DIR/lyta_shield.py"
+chmod +x "$STAGE_DIR/lyta_shield.py"
+for staged in "$STAGE_DIR"/*; do
+    mv -f "$staged" "$CONFIG_DIR/$(basename "$staged")"
+done
 
 hook_line=". \"$CONFIG_DIR/lyta_shield_hook.sh\""
 

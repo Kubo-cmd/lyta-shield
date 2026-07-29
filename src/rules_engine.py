@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -57,10 +57,22 @@ class RuleSet:
                 return True, reason
         return False, ""
 
-    def _is_safe_installer(self, cmd: str) -> bool:
-        return any(re.search(pat, cmd, re.IGNORECASE) for pat, _ in self.safe_installers)
+    def _is_safe_installer(self, matched_pipeline: str) -> bool:
+        urls = re.findall(r"https://[^\s'\"|;]+", matched_pipeline, re.IGNORECASE)
+        return len(urls) == 1 and any(
+            re.fullmatch(pattern, url.rstrip(")],"), re.IGNORECASE)
+            for url in urls
+            for pattern, _ in self.safe_installers
+        )
 
-    def _is_safe_context(self, text: str) -> bool:
+    @staticmethod
+    def _local_clause(text: str, start: int, end: int) -> str:
+        left = max(text.rfind(marker, 0, start) for marker in ".!?\n") + 1
+        boundaries = [position for marker in ".!?\n" if (position := text.find(marker, end)) >= 0]
+        right = min(boundaries) if boundaries else len(text)
+        return text[left:right]
+
+    def _is_safe_context(self, text: str, start: int, end: int) -> bool:
         # Educational / defensive / testing contexts where paste-jacking
         # instructions are not malicious.
         safe_markers = [
@@ -78,7 +90,8 @@ class RuleSet:
             r"\bcopy\s+this\s+and\s+paste\s+it\s+into\s+(?:the\s+)?(?:your\s+)?(?:shell|terminal|console)\s+for\s+(?:the\s+)?(?:tutorial|documentation|example|test)",
             r"\bcopy\s+this\s+(?:command|code|script)\s+for\s+(?:the\s+)?(?:tutorial|documentation|example|test)",
         ]
-        return any(re.search(pat, text, re.IGNORECASE) for pat in safe_markers)
+        local_context = self._local_clause(text, start, end)
+        return any(re.search(pat, local_context, re.IGNORECASE) for pat in safe_markers)
 
     def _normalize(self, text: str) -> str:
         text = unicodedata.normalize("NFKC", text)
@@ -105,12 +118,11 @@ class RuleSet:
             return ""
 
     def _run_blocked_checks(self, text: str) -> Optional[Verdict]:
-        safe_context = self._is_safe_context(text)
         downgraded: Optional[Verdict] = None
         for pat, reason in self.blocked:
             m = re.search(pat, text, re.IGNORECASE)
             if m:
-                if safe_context and ("paste" in reason or "copy_paste" in reason):
+                if self._is_safe_context(text, m.start(), m.end()) and ("paste" in reason or "copy_paste" in reason):
                     downgraded = Verdict(
                         "SUSPICIOUS",
                         1,

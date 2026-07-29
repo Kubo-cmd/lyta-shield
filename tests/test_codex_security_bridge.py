@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import os
@@ -82,8 +83,12 @@ class CodexSecurityBridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "results"
             output.mkdir(mode=0o700)
+            executable = Path(directory) / "codex-security"
+            executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            executable.chmod(0o755)
+            digest = hashlib.sha256(executable.read_bytes()).hexdigest()
             command = [
-                "/usr/local/bin/codex-security",
+                str(executable),
                 "scan",
                 "/tmp/repo",
                 "--output-dir",
@@ -93,7 +98,7 @@ class CodexSecurityBridgeTests(unittest.TestCase):
                 "--auth",
                 "chatgpt",
             ]
-            with mock.patch.dict(os.environ, {"TEST_API_TOKEN": "secret", "SAFE_VALUE": "kept"}):
+            with mock.patch.dict(os.environ, {"TEST_API_TOKEN": "secret", "SAFE_VALUE": "kept", "CODEX_SECURITY_SHA256": digest}):
                 with mock.patch.object(bridge.subprocess, "run") as run:
                     run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
                     bridge.run_dry_run(command)

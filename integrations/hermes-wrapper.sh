@@ -86,15 +86,34 @@ event = {
     "verdict": verdict,
     "reasons": reasons,
 }
+import stat
 os.makedirs(os.path.dirname(log), exist_ok=True)
-if os.path.exists(log) and os.path.getsize(log) >= 1024 * 1024:
+flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+if hasattr(os, "O_NOFOLLOW"):
+    flags |= os.O_NOFOLLOW
+try:
+    descriptor = os.open(log, flags, 0o600)
+except OSError as error:
+    raise SystemExit(f"unsafe telemetry log: {error}") from error
+info = os.fstat(descriptor)
+if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+    os.close(descriptor)
+    raise SystemExit("unsafe telemetry log: expected singly-linked owner-controlled regular file")
+if info.st_size >= 1024 * 1024:
+    os.close(descriptor)
     rotated = log + ".1"
-    if os.path.exists(rotated):
+    if os.path.lexists(rotated):
+        rotated_info = os.lstat(rotated)
+        if stat.S_ISLNK(rotated_info.st_mode) or not stat.S_ISREG(rotated_info.st_mode):
+            raise SystemExit("unsafe rotated telemetry path")
         os.remove(rotated)
+    if os.path.islink(log):
+        raise SystemExit("unsafe telemetry log symlink")
     os.replace(log, rotated)
-with open(log, "a", encoding="utf-8") as handle:
+    descriptor = os.open(log, flags, 0o600)
+with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
+    os.fchmod(handle.fileno(), 0o600)
     handle.write(json.dumps(event, separators=(",", ":")) + "\n")
-os.chmod(log, 0o600)
 PY
 
 # Open circuit breaker if this was a chat with DANGEROUS verdict and threshold is met.

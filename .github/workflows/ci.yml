@@ -17,17 +17,16 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Run complete test suite
         run: python3 -m pytest -q
@@ -37,17 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Run rules tests
         run: python3 -m pytest tests/test_lyta_shield_rules.py -v
@@ -72,17 +70,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Run simulation fuzz
         run: python3 -m pytest tests/test_simulation.py -v
@@ -92,17 +89,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Run performance benchmark
         run: python3 -m pytest tests/test_performance.py -v
@@ -113,17 +109,16 @@ jobs:
     needs: [rules, adversarial]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt pynacl
+          python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Generate backup signing keys
         run: |
@@ -151,45 +146,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Build wheel and source distribution
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install --require-hashes -r requirements-build.lock
           python3 -m build --wheel --sdist
 
       - name: Install and exercise console entry point
         run: |
-          python3 -m venv /tmp/lyta-wheel
-          /tmp/lyta-wheel/bin/python -m pip install dist/*.whl
-          /tmp/lyta-wheel/bin/lyta-shield --check 'printf safe'
+          python3 -m pip install --no-deps --force-reinstall dist/*.whl
+          (cd /tmp && lyta-shield --check 'printf safe')
 
       - name: Install and exercise source distribution
         run: |
-          python3 -m venv /tmp/lyta-sdist
-          /tmp/lyta-sdist/bin/python -m pip install dist/*.tar.gz
-          /tmp/lyta-sdist/bin/lyta-shield --check 'printf safe'
+          python3 -m pip install --no-deps --no-build-isolation --force-reinstall dist/*.tar.gz
+          (cd /tmp && lyta-shield --check 'printf safe')
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: python3 -m pip install -r requirements.txt -r requirements-dev.txt
+        run: python3 -m pip install --require-hashes -r requirements-build.lock
 
       - name: Lint
         run: python3 -m ruff check src/ scripts/ integrations/ tests/
