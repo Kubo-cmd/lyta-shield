@@ -79,6 +79,11 @@ jobs:
       - name: Install hash-locked release toolchain
         run: python3 -m pip install --require-hashes -r requirements-build.lock
 
+      - name: Install zsh for shell-hook regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes zsh
+
       - name: Test and lint the tag snapshot
         run: |
           python3 -m pytest -q

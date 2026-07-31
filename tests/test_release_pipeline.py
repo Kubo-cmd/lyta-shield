@@ -16,6 +16,8 @@ def test_release_workflow_is_tag_gated_reproducible_and_attested():
     assert 'tags:' in workflow and '"v*"' in workflow
     assert "git describe --tags --exact-match" in workflow
     assert "--require-hashes -r requirements-build.lock" in workflow
+    assert "sudo apt-get install --yes zsh" in workflow
+    assert workflow.index("sudo apt-get install --yes zsh") < workflow.index("python3 -m pytest -q")
     assert workflow.count("git archive HEAD") >= 2
     assert "cmp /tmp/lyta-build-a/dist/*.whl" in workflow
     assert "cmp /tmp/lyta-build-a/dist/*.tar.gz" in workflow
