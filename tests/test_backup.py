@@ -44,7 +44,7 @@ def backup_result(tmp_path_factory):
     shutil.copytree(
         ROOT,
         sandbox,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
+        ignore=shutil.ignore_patterns(".git", ".venv", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
     )
     home = sandbox.parent / "home"
     home.mkdir()
@@ -55,6 +55,9 @@ def backup_result(tmp_path_factory):
     ignored_bin = sandbox / "integrations" / "synthetic" / "node_modules" / ".bin"
     ignored_bin.mkdir(parents=True, exist_ok=True)
     (ignored_bin / "scanner").symlink_to("/tmp/not-part-of-backup")
+    ignored_venv_bin = sandbox / ".venv" / "bin"
+    ignored_venv_bin.mkdir(parents=True, exist_ok=True)
+    (ignored_venv_bin / "python").symlink_to("/tmp/not-part-of-backup")
     generate = subprocess.run(
         [sys.executable, str(sandbox / "scripts" / "generate-backup-key.py")],
         text=True,
@@ -94,6 +97,7 @@ def test_backup_creates_signed_archive(backup_result):
     assert os.stat(archive).st_mode & 0o077 == 0
     with tarfile.open(archive, "r:gz") as bundle:
         assert all("node_modules" not in Path(name).parts for name in bundle.getnames())
+        assert all(".venv" not in Path(name).parts for name in bundle.getnames())
 
 
 def test_verify_backup_passes(backup_result):
@@ -140,7 +144,7 @@ def test_backup_refuses_symlinks_and_removes_partial_archive(tmp_path):
     shutil.copytree(
         ROOT,
         sandbox,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
+        ignore=shutil.ignore_patterns(".git", ".venv", ".pytest_cache", "__pycache__", "dist", "backups", "keys"),
     )
     home = tmp_path / "home"
     home.mkdir()

@@ -23,7 +23,7 @@
     "extensions/browser/lyta_shield_console_guard.user.js": "7a7ff4b0a7dde385fd0fe42f41c4dbcc4ff2220b53ebf8abff1539402843bced",
     "scripts/backup_common.py": "5c983bb87b979c06393790a42d153bc4199f694125410eba844f904ed1bf98ff",
     "scripts/backup-key-health.py": "b8fc6fab21905bd89c651f0b09b445c8237791d7cf94030584eaedd00d64fb8d",
-    "scripts/backup-sign.py": "6cecf76b78ca1ac7b3f82e69cee1729d9fad1ef17980ea76682c2ce758b58616",
+    "scripts/backup-sign.py": "9550d2acc5de7ee097d2176a0a54e9d62f6a2f23a2de353e40db3d5a336db675",
     "scripts/export-metrics.py": "dacbafdf373841fba26082482ba89ab62a427f65e44097edfe612f48ec1f506d",
     "scripts/generate-backup-key.py": "020adc43f16aad9e64a1b470901f3e1462bd210df9395006ec8f9dbee72c90c9",
     "scripts/generate-codex-runtime-manifest.py": "e0c26947e314b36bbc8fb6a98ad1f5366348684f98fb4822b381acb83ba417a8",

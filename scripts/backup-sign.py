@@ -28,6 +28,7 @@ PUBLIC_KEY = ROOT / "var" / "keys" / "backup-sign.nacl.pub"
 
 EXCLUDED_PARTS = {
     ".git",
+    ".venv",
     "__pycache__",
     ".mypy_cache",
     ".pytest_cache",
