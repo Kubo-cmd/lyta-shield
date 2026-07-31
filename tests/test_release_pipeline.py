@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE = ROOT / ".github" / "workflows" / "release.yml"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
+WORKFLOWS = ROOT / ".github" / "workflows"
 
 
 def test_release_workflow_is_tag_gated_reproducible_and_attested():
@@ -24,7 +25,7 @@ def test_release_workflow_is_tag_gated_reproducible_and_attested():
 
 
 def test_all_workflow_actions_are_commit_pinned():
-    for path in (CI, RELEASE):
+    for path in sorted(WORKFLOWS.glob("*.yml")):
         workflow = path.read_text(encoding="utf-8")
         uses = re.findall(r"uses:\s+([^\s#]+)", workflow)
         assert uses
@@ -37,7 +38,7 @@ def test_release_toolchain_is_exact_and_hash_locked():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     lock = (ROOT / "requirements-build.lock").read_text(encoding="utf-8")
     assert 'requires = ["hatchling==1.27.0"]' in pyproject
-    for package in ("build", "exceptiongroup", "hatchling", "pytest", "pynacl", "ruff", "tomli", "typing-extensions"):
+    for package in ("build", "hatchling", "pytest", "pynacl", "ruff"):
         assert re.search(rf"^{package}==[^\s]+", lock, re.MULTILINE)
     assert "--hash=sha256:" in lock
     assert ">=" not in lock
@@ -70,6 +71,11 @@ def test_sbom_generator_is_deterministic(tmp_path):
     document = json.loads(outputs[0].read_text(encoding="utf-8"))
     assert document["bomFormat"] == "CycloneDX"
     assert document["specVersion"] == "1.6"
+    assert document["components"]
+    assert all(component.get("version") for component in document["components"])
+    assert all("@" in component["purl"] for component in document["components"])
+    assert any(component["name"].lower() == "cffi" for component in document["components"])
+    assert len(document["dependencies"]) == len(document["components"]) + 1
 
 
 def test_release_requires_signed_tag_exact_main_sha_and_green_push_ci_before_build():

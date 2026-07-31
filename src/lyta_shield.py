@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LYTA Shield — Terminal guard v1.5.2
+LYTA Shield — Terminal guard v1.5.3
 
 Inspects shell commands before execution and blocks or confirms common
 paste-jacking payloads.
@@ -23,16 +23,18 @@ from typing import List, Tuple
 
 from rules_engine import Verdict, check
 
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 
 
-def scan_history(path: str) -> List[Tuple[int, str, Verdict]]:
+def scan_history(path: str, rules_path: Path | None = None) -> List[Tuple[int, str, Verdict]]:
     results = []
     p = Path(path)
     if not p.exists():
-        return results
+        raise FileNotFoundError(f"history file does not exist: {p}")
+    if p.is_symlink() or not p.is_file():
+        raise ValueError(f"history path must be a regular file: {p}")
     for i, line in enumerate(p.read_text(errors="replace").splitlines(), start=1):
-        v = check(line)
+        v = check(line, rules_path=rules_path)
         if v.code != 0:
             results.append((i, line, v))
     return results
@@ -56,7 +58,11 @@ def main() -> int:
         return v.code
 
     if args.batch:
-        results = scan_history(args.batch)
+        try:
+            results = scan_history(args.batch, rules_path=rules_path)
+        except (OSError, ValueError) as error:
+            print(f"[LYTA Shield] Batch scan failed: {error}", file=sys.stderr)
+            return 2
         if args.json:
             out = [{"line": ln, "command": cmd, "action": v.action, "reasons": v.reasons, "matched": v.matched} for ln, cmd, v in results]
             print(json.dumps(out))

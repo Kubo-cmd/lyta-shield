@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib.metadata as metadata
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -33,17 +35,47 @@ def main() -> int:
     namespace = uuid.UUID("ec68eeea-53c8-4c85-8798-f1d3efc3508d")
     serial = uuid.uuid5(namespace, f"{args.commit}:{args.tag}")
 
+    lock_text = Path("requirements-build.lock").read_text(encoding="utf-8")
+    locked = {
+        re.sub(r"[-_.]+", "-", name).lower(): (name, resolved)
+        for name, resolved in re.findall(r"(?m)^([A-Za-z0-9_.-]+)==([^\\\s]+)", lock_text)
+    }
+    if not locked:
+        raise SystemExit("requirements-build.lock has no exact package versions")
+
     components = []
-    dependencies = []
+    graph: dict[str, list[str]] = {}
+    for canonical, (name, resolved) in sorted(locked.items()):
+        reference = f"pkg:pypi/{canonical}@{resolved}"
+        components.append({
+            "type": "library",
+            "name": name,
+            "version": resolved,
+            "bom-ref": reference,
+            "purl": reference,
+            "properties": [{"name": "source:lockfile", "value": "requirements-build.lock"}],
+        })
+        children = []
+        try:
+            declared = metadata.requires(name) or []
+        except metadata.PackageNotFoundError:
+            declared = []
+        for requirement in declared:
+            match = re.match(r"\s*([A-Za-z0-9_.-]+)", requirement)
+            dependency = re.sub(r"[-_.]+", "-", match.group(1)).lower() if match else ""
+            if dependency in locked:
+                _, dep_version = locked[dependency]
+                children.append(f"pkg:pypi/{dependency}@{dep_version}")
+        graph[reference] = sorted(set(children))
+
+    root_dependencies = []
     for requirement in project.get("dependencies", []):
-        name = requirement.split(";", 1)[0].split("[", 1)[0]
-        for separator in (">=", "==", "~=", "<=", ">", "<"):
-            name = name.split(separator, 1)[0]
-        name = name.strip()
-        if name:
-            reference = f"pkg:pypi/{name.lower()}"
-            components.append({"type": "library", "name": name, "bom-ref": reference, "purl": reference})
-            dependencies.append(reference)
+        match = re.match(r"\s*([A-Za-z0-9_.-]+)", requirement)
+        canonical = re.sub(r"[-_.]+", "-", match.group(1)).lower() if match else ""
+        if canonical not in locked:
+            raise SystemExit(f"runtime dependency is not exactly resolved in requirements-build.lock: {requirement}")
+        _, resolved = locked[canonical]
+        root_dependencies.append(f"pkg:pypi/{canonical}@{resolved}")
 
     root_ref = f"pkg:pypi/{project['name']}@{version}"
     document = {
@@ -67,7 +99,10 @@ def main() -> int:
             },
         },
         "components": sorted(components, key=lambda component: component["name"].lower()),
-        "dependencies": [{"ref": root_ref, "dependsOn": sorted(dependencies)}],
+        "dependencies": [
+            {"ref": root_ref, "dependsOn": sorted(root_dependencies)},
+            *({"ref": reference, "dependsOn": children} for reference, children in sorted(graph.items())),
+        ],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")

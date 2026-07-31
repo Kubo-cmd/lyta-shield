@@ -1,5 +1,5 @@
 {
-  "version": "1.5.2",
+  "version": "1.5.3",
   "blocked": [
     {
       "id": "base64_decode_to_shell",

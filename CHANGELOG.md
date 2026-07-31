@@ -1,5 +1,15 @@
 # LYTA Shield Changelog
 
+## v1.5.3
+
+- Reject empty, incomplete, malformed, or caller-weakened rule schemas before enforcement.
+- Canonicalize common shell-equivalent spellings and preserve the highest streaming severity.
+- Validate the complete wrapper guard protocol and fail closed on contradictory fields or exit status.
+- Fail closed on missing or symlinked batch inputs and remove the single-variable terminal-hook bypass.
+- Pin every workflow action, expand release-critical integrity coverage, and anchor the baseline outside the repository.
+- Emit exact lockfile versions and resolved dependency relationships in the release SBOM.
+- Add permanent adversarial regressions for all independently reproduced bypasses.
+
 ## v1.5.2
 
 - Require release tags to be signed annotated tags verified by GitHub before artifacts are built or attested.

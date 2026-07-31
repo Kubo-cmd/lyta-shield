@@ -48,23 +48,30 @@ GUARD_JSON=$(python3 "$GUARD" --file "$OUT" 2>/dev/null)
 GUARD_RC=$?
 set -e
 
-# Parse guard output once. Invalid output is a fail-closed guard failure.
+# Parse and validate the complete guard protocol once. Any inconsistent field
+# or exit status is converted to a fail-closed DANGEROUS result.
 PARSED=$(printf '%s' "$GUARD_JSON" | python3 -c 'import json,sys
 try:
- d=json.load(sys.stdin); assert isinstance(d,dict)
- print(d.get("verdict","DANGEROUS"))
- print(json.dumps(d.get("reasons",[])))
+ d=json.load(sys.stdin)
+ required={"allowed","verdict","code","reasons","matched","warning"}
+ assert isinstance(d,dict) and set(d)==required
+ assert type(d["allowed"]) is bool
+ assert type(d["code"]) is int and d["code"] in (0,1,2)
+ assert isinstance(d["verdict"],str) and d["verdict"] in ("SAFE","SUSPICIOUS","DANGEROUS")
+ assert isinstance(d["reasons"],list) and all(isinstance(x,str) for x in d["reasons"])
+ assert d["matched"] is None or isinstance(d["matched"],str)
+ assert isinstance(d["warning"],str)
+ rc=int(sys.argv[1])
+ expected={"SAFE":(True,0,0),"SUSPICIOUS":(False,1,2),"DANGEROUS":(False,2,2)}
+ assert (d["allowed"],d["code"],rc)==expected[d["verdict"]]
+ print(d["verdict"])
+ print(json.dumps(d["reasons"]))
 except Exception:
  print("DANGEROUS")
  print("[\"guard_protocol_error\"]")
- raise SystemExit(2)' 2>/dev/null) || GUARD_RC=2
+ raise SystemExit(2)' "$GUARD_RC" 2>/dev/null) || GUARD_RC=2
 VERDICT=$(printf '%s\n' "$PARSED" | python3 -c 'import sys; print(sys.stdin.readline().strip() or "DANGEROUS")')
 REASONS=$(printf '%s\n' "$PARSED" | python3 -c 'import sys; sys.stdin.readline(); print(sys.stdin.readline().strip() or "[\"guard_protocol_error\"]")')
-if [[ "$VERDICT" != "SAFE" && "$VERDICT" != "SUSPICIOUS" && "$VERDICT" != "DANGEROUS" ]]; then
-    VERDICT="DANGEROUS"
-    REASONS='["guard_protocol_error"]'
-    GUARD_RC=2
-fi
 
 # Append telemetry event.
 python3 - "$EVENT_LOG" "$RC" "$GUARD_RC" "$VERDICT" "$REASONS" "${1:-unknown}" "$#" <<'PY'

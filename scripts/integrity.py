@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import stat
@@ -26,6 +27,14 @@ MAX_PROTECTED_FILE_BYTES = 8 * 1024 * 1024
 EXPECTED = (
     "src/rules_engine.py",
     "src/rules.json",
+    "src/lyta_shield.py",
+    "src/lyta_shield_hook.sh",
+    "pyproject.toml",
+    "requirements-build.lock",
+    "requirements-dev.txt",
+    ".github/workflows/ci.yml",
+    ".github/workflows/codeql.yml",
+    ".github/workflows/release.yml",
     "bin/lyta-shield",
     "bin/lyta-shield-doctor",
     "integrations/codex_security_bridge.py",
@@ -42,12 +51,47 @@ EXPECTED = (
     "scripts/export-metrics.py",
     "scripts/generate-backup-key.py",
     "scripts/generate-codex-runtime-manifest.py",
+    "scripts/generate-release-sbom.py",
     "scripts/integrity.py",
     "scripts/install-wrapper.py",
     "scripts/rotate-backup-key.py",
     "scripts/rotate-backups.py",
     "scripts/verify-backup.py",
 )
+
+
+def anchor_path() -> Path:
+    configured = os.environ.get("LYTA_INTEGRITY_ANCHOR")
+    path = Path(configured).expanduser() if configured else Path.home() / ".local/state/lyta-shield/integrity-anchor.sha256"
+    resolved = path.resolve(strict=False)
+    root = ROOT.resolve(strict=True)
+    if resolved == root or root in resolved.parents:
+        raise ValueError("integrity anchor must be outside the repository")
+    return resolved
+
+
+def write_anchor(payload: bytes) -> None:
+    anchor = anchor_path()
+    anchor.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor, temporary = tempfile.mkstemp(prefix=".integrity-anchor-", dir=anchor.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="ascii") as handle:
+            handle.write(digest_bytes(payload) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, anchor)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def verify_anchor(payload: bytes) -> None:
+    expected = read_regular_file(anchor_path()).decode("ascii").strip()
+    if len(expected) != 64 or any(char not in "0123456789abcdef" for char in expected):
+        raise ValueError("invalid external integrity anchor")
+    if not hmac.compare_digest(expected, digest_bytes(payload)):
+        raise ValueError("external integrity anchor mismatch")
 
 
 def target_path(relative: str, root: Path = ROOT) -> Path:
@@ -91,7 +135,10 @@ def digest_bytes(data: bytes) -> str:
 
 
 def load_baseline(path: Path = BASELINE) -> dict[str, str]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    payload = read_regular_file(path)
+    if path.resolve(strict=False) == BASELINE.resolve(strict=False):
+        verify_anchor(payload)
+    data = json.loads(payload.decode("utf-8"))
     if not isinstance(data, dict) or data.get("version") != 2 or not isinstance(data.get("files"), dict):
         raise ValueError("unsupported integrity baseline; recreate it")
     files: dict[str, str] = data["files"]
@@ -112,15 +159,16 @@ def create_baseline() -> int:
     for relative in EXPECTED:
         files[relative] = digest_bytes(read_regular_file(target_path(relative)))
     BASELINE.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps({"version": 2, "files": files}, indent=2) + "\n"
+    payload = (json.dumps({"version": 2, "files": files}, indent=2) + "\n").encode("utf-8")
     descriptor, temporary = tempfile.mkstemp(prefix=".integrity-", dir=BASELINE.parent)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        with os.fdopen(descriptor, "wb") as handle:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
         os.chmod(temporary, 0o644)
         os.replace(temporary, BASELINE)
+        write_anchor(payload)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

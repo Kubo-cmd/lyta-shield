@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -44,11 +44,37 @@ class RuleSet:
     def _load(self) -> None:
         with self.rules_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
+
+        if not isinstance(data, dict):
+            raise ValueError("rules document must be a JSON object")
+        required = ("blocked", "suspicious", "safe_installers", "bounty_spam")
+        missing = [name for name in required if name not in data]
+        if missing:
+            raise ValueError(f"rules document missing required sections: {', '.join(missing)}")
+        for name in required:
+            entries = data[name]
+            if not isinstance(entries, list) or not entries:
+                raise ValueError(f"rules section must be a non-empty list: {name}")
+            for index, entry in enumerate(entries):
+                if not isinstance(entry, dict):
+                    raise ValueError(f"invalid rule entry: {name}[{index}]")
+                fields = set(entry)
+                if not {"pattern", "id"}.issubset(fields) or not fields.issubset({"pattern", "id", "description"}):
+                    raise ValueError(f"invalid rule entry: {name}[{index}]")
+                if not all(isinstance(entry[key], str) and entry[key].strip() for key in ("pattern", "id")):
+                    raise ValueError(f"empty rule field: {name}[{index}]")
+                if "description" in entry and not isinstance(entry["description"], str):
+                    raise ValueError(f"invalid rule description: {name}[{index}]")
+                try:
+                    re.compile(entry["pattern"], re.IGNORECASE)
+                except re.error as error:
+                    raise ValueError(f"invalid regex in {name}[{index}]: {error}") from error
+
         self.version = data.get("version", VERSION)
-        self.blocked = [(r["pattern"], r["id"]) for r in data.get("blocked", [])]
-        self.suspicious = [(r["pattern"], r["id"]) for r in data.get("suspicious", [])]
-        self.safe_installers = [(r["pattern"], r["id"]) for r in data.get("safe_installers", [])]
-        self.bounty_spam = [(r["pattern"], r["id"]) for r in data.get("bounty_spam", [])]
+        self.blocked = [(r["pattern"], r["id"]) for r in data["blocked"]]
+        self.suspicious = [(r["pattern"], r["id"]) for r in data["suspicious"]]
+        self.safe_installers = [(r["pattern"], r["id"]) for r in data["safe_installers"]]
+        self.bounty_spam = [(r["pattern"], r["id"]) for r in data["bounty_spam"]]
 
     def _is_bounty_spam(self, cmd: str) -> tuple[bool, str]:
         for pat, reason in self.bounty_spam:
@@ -107,6 +133,22 @@ class RuleSet:
         text = re.sub(r"\s+", " ", text).strip()
         return text
 
+    @staticmethod
+    def _canonicalize_shell(text: str) -> str:
+        """Collapse common shell-equivalent spellings before policy checks."""
+        text = re.sub(r"\\(?=[A-Za-z0-9_./-])", "", text)
+        text = re.sub(r"(?<![\w/])/(?:usr/)?bin/((?:ba|z|da)?sh)\b", r"\1", text, flags=re.IGNORECASE)
+        text = re.sub(r"\|\s*command\s+(?=(?:ba|z|da)?sh\b)", "| ", text, flags=re.IGNORECASE)
+        text = re.sub(r"\brm\s+--recursive\b", "rm -r", text, flags=re.IGNORECASE)
+        text = re.sub(r"\brm\s+(-[^\s]+)\s+--force\b", r"rm \1 -f", text, flags=re.IGNORECASE)
+
+        def merge_rm_flags(match: re.Match[str]) -> str:
+            flags = "".join(re.findall(r"[rf]", match.group(1), flags=re.IGNORECASE)).lower()
+            ordered = "".join(flag for flag in "rf" if flag in flags)
+            return f"rm -{ordered} " if ordered else match.group(0)
+
+        return re.sub(r"\brm\s+((?:-[rf]+\s+){2,})", merge_rm_flags, text, flags=re.IGNORECASE)
+
     def _try_decode_base64(self, text: str) -> str:
         m = re.search(r"['\"]([A-Za-z0-9+/=\s]{20,})['\"]\s*\|\s*base64", text)
         if not m:
@@ -141,7 +183,7 @@ class RuleSet:
         return downgraded
 
     def check(self, text: str) -> Verdict:
-        text = self._normalize(text)
+        text = self._canonicalize_shell(self._normalize(text))
         if not text:
             return Verdict("SAFE", 0)
 
@@ -192,26 +234,15 @@ class StreamChecker:
         if not chunk:
             return Verdict("SAFE", 0)
 
-        # Check the chunk itself
-        result = self.engine.check(chunk)
-        if result.code >= 2:
-            return result
-
-        # Check combined with recent buffer (whitespace-collapsed)
         combined = self.engine._normalize(self.buffer + chunk)
-        result = self.engine.check(combined)
-        if result.code >= 2:
-            return result
-
         combined_spaced = self.engine._normalize(self.buffer + " " + chunk)
-        result = self.engine.check(combined_spaced)
-        if result.code >= 2:
-            return result
-
-        # Update buffer: keep recent normalized text
+        candidates = (
+            self.engine.check(chunk),
+            self.engine.check(combined),
+            self.engine.check(combined_spaced),
+        )
         self.buffer = self.engine._normalize((self.buffer + " " + chunk)[-self.lookback:])
-
-        return Verdict("SAFE", 0)
+        return max(candidates, key=lambda verdict: verdict.code)
 
     def reset(self) -> None:
         self.buffer = ""

@@ -5,9 +5,7 @@
 # Install:
 #   echo '. "$HOME/.config/lyta-shield/lyta_shield_hook.sh"' >> ~/.zshrc
 #   echo '. "$HOME/.config/lyta-shield/lyta_shield_hook.sh"' >> ~/.bashrc
-#
-# Bypass (only when you are sure):
-#   LYTA_SHIELD_DISABLE=1 <command>
+
 
 LYTA_SHIELD_BIN="${LYTA_SHIELD_BIN:-$HOME/.config/lyta-shield/lyta_shield.py}"
 LYTA_SHIELD_RULES="${LYTA_SHIELD_RULES:-$HOME/.config/lyta-shield/rules.json}"
@@ -15,7 +13,6 @@ LYTA_SHIELD_RULES="${LYTA_SHIELD_RULES:-$HOME/.config/lyta-shield/rules.json}"
 if [[ -n "$ZSH_VERSION" ]]; then
     lyta_shield() {
         [[ -o interactive ]] || return 0
-        [[ -n "$LYTA_SHIELD_DISABLE" ]] && return 0
         local cmd="$1"
         [[ -z "$cmd" ]] && return 0
         if [[ ! -f "$LYTA_SHIELD_BIN" || -L "$LYTA_SHIELD_BIN" ]]; then
@@ -30,7 +27,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
             echo ""
             echo "\033[1;31m[LYTA Shield] BLOCKED: dangerous command detected.\033[0m"
             echo "$result" | sed 's/^/  /'
-            echo "\033[1;33mIf you are SURE this is legitimate, run: LYTA_SHIELD_DISABLE=1 <command>\033[0m"
+            echo "\033[1;33mReview the command and rules before retrying.\033[0m"
             echo ""
             kill -INT $$
             return 1
@@ -61,7 +58,6 @@ fi
 
 if [[ -n "$BASH_VERSION" ]]; then
     lyta_shield_bash() {
-        [[ -n "$LYTA_SHIELD_DISABLE" ]] && return 0
         local cmd="$BASH_COMMAND"
         [[ -z "$cmd" ]] && return 0
         if [[ ! -f "$LYTA_SHIELD_BIN" || -L "$LYTA_SHIELD_BIN" ]]; then
@@ -76,7 +72,7 @@ if [[ -n "$BASH_VERSION" ]]; then
             echo ""
             echo -e "\033[1;31m[LYTA Shield] BLOCKED: dangerous command detected.\033[0m"
             echo "$result" | sed 's/^/  /'
-            echo -e "\033[1;33mIf you are SURE this is legitimate, run: LYTA_SHIELD_DISABLE=1 <command>\033[0m"
+            echo -e "\033[1;33mReview the command and rules before retrying.\033[0m"
             echo ""
             kill -INT $$
         elif [[ $code -eq 1 ]]; then
