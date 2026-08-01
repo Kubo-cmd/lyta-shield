@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LYTA Shield — Terminal guard v1.5.3
+LYTA Shield — Terminal guard v1.6.0
 
 Inspects shell commands before execution and blocks or confirms common
 paste-jacking payloads.
