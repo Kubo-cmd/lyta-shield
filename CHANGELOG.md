@@ -1,5 +1,12 @@
 # LYTA Shield Changelog
 
+## v1.6.0
+
+- Add a phishing-URL rule family: host-only heuristic classifier (`src/phish_url.py`) that normalizes Unicode (defeats homoglyphs) and flags seed-blocklist hits, IP-literal hosts, punycode, suspect TLDs, free-subdomain hosts, and brand-lookalike tokens.
+- Ship a SHA-256-pinned seed blocklist (`src/phish_seed_blocklist.json`) verified at load, seeded with the seven-domain `ct.ws` "vote for me" X-DM credential-phishing campaign mapped 2026-07-31. Tampered lists are rejected and flagged.
+- Local-only, zero network calls by design; a missing seed file degrades to a graceful no-op.
+- Add 19 permanent adversarial tests covering live campaign IOCs, heuristic attack classes, false-positive guards, and blocklist signature/tamper verification.
+
 ## v1.5.3
 
 - Reject empty, incomplete, malformed, or caller-weakened rule schemas before enforcement.

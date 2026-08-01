@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.5.3"
+VERSION = "1.6.0"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
 
@@ -182,6 +182,17 @@ class RuleSet:
                 return Verdict("DANGEROUS", 2, reasons=[reason], matched=m.group(0))
         return downgraded
 
+    def _check_phish_urls(self, text: str) -> tuple[int, list[str]]:
+        """Local-only phishing URL heuristic. Optional seed blocklist is
+        sha256-verified at load; absent file = no-op (graceful)."""
+        try:
+            import phish_url
+        except Exception:
+            return 0, []
+        seed = Path(__file__).with_name("phish_seed_blocklist.json")
+        code, reasons = phish_url.classify_text(text, seed if seed.exists() else None)
+        return code, reasons
+
     def check(self, text: str) -> Verdict:
         text = self._canonicalize_shell(self._normalize(text))
         if not text:
@@ -190,6 +201,10 @@ class RuleSet:
         spam, spam_reason = self._is_bounty_spam(text)
         if spam:
             return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
+
+        phish_code, phish_reasons = self._check_phish_urls(text)
+        if phish_code == 2:
+            return Verdict("DANGEROUS", 2, reasons=phish_reasons)
 
         result = self._run_blocked_checks(text)
         if result:
@@ -212,6 +227,8 @@ class RuleSet:
                 )
 
         reasons = []
+        if phish_code == 1:
+            reasons.extend(phish_reasons)
         for pat, reason in self.suspicious:
             if re.search(pat, text, re.IGNORECASE):
                 reasons.append(reason)

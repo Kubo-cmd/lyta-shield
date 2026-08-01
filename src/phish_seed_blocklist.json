@@ -1,0 +1,15 @@
+{
+  "name": "lyta-shield phish seed blocklist",
+  "version": "1.6.0",
+  "source": "mapped live 2026-07-31 from active X DM 'vote for me' campaign (sizipod.ct.ws), verified via DNS + x_search",
+  "hosts": [
+    "ceditex.ct.ws",
+    "podcastambassadorsprimes.ct.ws",
+    "sizipod.ct.ws",
+    "votce-new.ct.ws",
+    "xedipod.ct.ws",
+    "zezi-pod.ct.ws",
+    "zezipod.ct.ws"
+  ],
+  "sha256": "51942ab92e2f59fc99bc50e3228bacb4f38096ee74f81e4fc63564f24fd39b0d"
+}

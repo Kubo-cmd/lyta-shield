@@ -23,7 +23,7 @@ from typing import List, Tuple
 
 from rules_engine import Verdict, check
 
-VERSION = "1.5.3"
+VERSION = "1.6.0"
 
 
 def scan_history(path: str, rules_path: Path | None = None) -> List[Tuple[int, str, Verdict]]:
