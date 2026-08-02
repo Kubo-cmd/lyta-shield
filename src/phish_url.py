@@ -94,7 +94,6 @@ def classify_text(text: str, seed_path: Optional[Path] = None) -> Tuple[int, Lis
         if any(host.endswith(t) for t in SUSPECT_TLDS):
             reasons.append(f"phish_suspect_tld: {host}")
             signals += 1
-        base = host.split(".", 1)[1] if "." in host else host
         if any(host == f or host.endswith("." + f) for f in FREE_SUBDOMAIN_HOSTS):
             reasons.append(f"phish_free_subdomain_host: {host}")
             signals += 1

@@ -13,9 +13,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "1.6.0"
+try:
+    from phish_url import classify_text as _phish_classify
+except Exception:  # phish module optional; fail-open to core rules only
+    _phish_classify = None
+
+VERSION = "1.5.3"
 
 RULES_PATH = Path(__file__).with_name("rules.json")
+PHISH_SEED_PATH = Path(__file__).with_name("phish_seed_blocklist.json")
 
 
 @dataclass
@@ -182,17 +188,6 @@ class RuleSet:
                 return Verdict("DANGEROUS", 2, reasons=[reason], matched=m.group(0))
         return downgraded
 
-    def _check_phish_urls(self, text: str) -> tuple[int, list[str]]:
-        """Local-only phishing URL heuristic. Optional seed blocklist is
-        sha256-verified at load; absent file = no-op (graceful)."""
-        try:
-            import phish_url
-        except Exception:
-            return 0, []
-        seed = Path(__file__).with_name("phish_seed_blocklist.json")
-        code, reasons = phish_url.classify_text(text, seed if seed.exists() else None)
-        return code, reasons
-
     def check(self, text: str) -> Verdict:
         text = self._canonicalize_shell(self._normalize(text))
         if not text:
@@ -202,13 +197,20 @@ class RuleSet:
         if spam:
             return Verdict("DANGEROUS", 2, reasons=[f"bounty_spam: {spam_reason}"])
 
-        phish_code, phish_reasons = self._check_phish_urls(text)
-        if phish_code == 2:
-            return Verdict("DANGEROUS", 2, reasons=phish_reasons)
-
         result = self._run_blocked_checks(text)
         if result:
             return result
+
+        # Phishing-URL heuristics (v1.6.0): escalate on host signals.
+        if _phish_classify is not None:
+            try:
+                pcode, preasons = _phish_classify(text, seed_path=PHISH_SEED_PATH)
+            except Exception:
+                pcode, preasons = 0, []
+            if pcode >= 2:
+                return Verdict("DANGEROUS", 2, reasons=preasons or ["phish_seed_blocklist"])
+            if pcode == 1:
+                return Verdict("SUSPICIOUS", 1, reasons=preasons or ["phish_heuristic"])
 
         decoded = self._try_decode_base64(text)
         if decoded:
@@ -227,8 +229,6 @@ class RuleSet:
                 )
 
         reasons = []
-        if phish_code == 1:
-            reasons.extend(phish_reasons)
         for pat, reason in self.suspicious:
             if re.search(pat, text, re.IGNORECASE):
                 reasons.append(reason)

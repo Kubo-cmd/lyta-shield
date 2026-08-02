@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LYTA Shield — Terminal guard v1.6.0
+LYTA Shield — Terminal guard v1.5.3
 
 Inspects shell commands before execution and blocks or confirms common
 paste-jacking payloads.
@@ -23,7 +23,7 @@ from typing import List, Tuple
 
 from rules_engine import Verdict, check
 
-VERSION = "1.6.0"
+VERSION = "1.5.3"
 
 
 def scan_history(path: str, rules_path: Path | None = None) -> List[Tuple[int, str, Verdict]]:
