@@ -1,5 +1,13 @@
 # LYTA Shield Changelog
 
+## Unreleased
+
+- Ship `src/phish_url.py` and `src/phish_seed_blocklist.json` with `install.sh` so installed terminal guards keep phishing-URL protection.
+- Honor the `LYTA_SHIELD_RULES` environment variable exported by the shell hook as the default rules path, with `--rules` taking precedence. `--check` now fails closed (exit 2) instead of raising on missing or invalid rules.
+- Cover `src/phish_url.py` and `src/phish_seed_blocklist.json` with the integrity baseline.
+- Fix `RELEASE-v1.6.0.md` skill-scan paths, remove the stale `LYTA_SHIELD_DISABLE` bypass from the README and installer, remove a broken docs image reference, and refresh the README architecture map.
+- Add a doc-drift regression suite that keeps installer file lists, release-doc paths, and README link targets in sync with the tree.
+
 ## v1.6.0
 
 - Add a phishing-URL rule family: host-only heuristic classifier (`src/phish_url.py`) that normalizes Unicode (defeats homoglyphs) and flags seed-blocklist hits, IP-literal hosts, punycode, suspect TLDs, free-subdomain hosts, and brand-lookalike tokens.

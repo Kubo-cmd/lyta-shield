@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List, Tuple
@@ -24,6 +25,11 @@ from typing import List, Tuple
 from rules_engine import Verdict, check
 
 VERSION = "1.5.3"
+
+
+def default_rules_path() -> Path | None:
+    configured = os.environ.get("LYTA_SHIELD_RULES")
+    return Path(configured) if configured else None
 
 
 def scan_history(path: str, rules_path: Path | None = None) -> List[Tuple[int, str, Verdict]]:
@@ -48,9 +54,13 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="output JSON")
     args = parser.parse_args()
 
-    rules_path = Path(args.rules) if args.rules else None
+    rules_path = Path(args.rules) if args.rules else default_rules_path()
     if args.check:
-        v = check(args.check, rules_path=rules_path)
+        try:
+            v = check(args.check, rules_path=rules_path)
+        except (OSError, ValueError) as error:
+            print(f"[LYTA Shield] Check failed: {error}", file=sys.stderr)
+            return 2
         if args.json:
             print(json.dumps({"action": v.action, "code": v.code, "reasons": v.reasons, "matched": v.matched}))
         else:

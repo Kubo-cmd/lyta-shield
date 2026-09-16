@@ -21,7 +21,7 @@ install_file() {
     cp "$source" "$destination"
 }
 
-for file in src/rules.json src/rules_engine.py src/lyta_shield.py src/lyta_shield_hook.sh; do
+for file in src/rules.json src/rules_engine.py src/lyta_shield.py src/lyta_shield_hook.sh src/phish_url.py src/phish_seed_blocklist.json; do
     install_file "$file"
 done
 
@@ -46,4 +46,4 @@ append_if_missing "${HOME}/.bashrc"
 echo "[LYTA Shield] Terminal guard installed."
 echo "[LYTA Shield] Start a new shell to activate."
 echo "[LYTA Shield] Browser guard: extensions/browser/lyta_shield_console_guard.user.js"
-echo "[LYTA Shield] Bypass: LYTA_SHIELD_DISABLE=1 <command>"
+echo "[LYTA Shield] Override: type YES when prompted for suspicious commands; dangerous commands are always blocked."

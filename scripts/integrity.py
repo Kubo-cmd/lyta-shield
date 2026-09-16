@@ -27,6 +27,8 @@ MAX_PROTECTED_FILE_BYTES = 8 * 1024 * 1024
 EXPECTED = (
     "src/rules_engine.py",
     "src/rules.json",
+    "src/phish_url.py",
+    "src/phish_seed_blocklist.json",
     "src/lyta_shield.py",
     "src/lyta_shield_hook.sh",
     "pyproject.toml",
