@@ -49,8 +49,8 @@ docs are REVIEW-class in practice; only genuinely new writes are hard-gated.
 
 ## Install / run
 
-    python3 scripts/skill-scan/lyta_skill_scan_redteam.py   # red-team corpus
-    python3 scripts/skill-scan/lyta_skill_scan_test.py      # fixtures + sweep
-    python3 scripts/skill-scan/lyta_scan_gate.py <skill_dir>  # gate one skill
+    python3 tools/skill_scan/lyta_skill_scan_redteam.py   # red-team corpus
+    python3 tools/skill_scan/lyta_skill_scan_test.py      # fixtures + sweep
+    python3 tools/skill_scan/lyta_scan_gate.py <skill_dir>  # gate one skill
 
 Exit codes: 0 clean, 1 review, 2 blocked.

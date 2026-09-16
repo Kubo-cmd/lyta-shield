@@ -76,9 +76,17 @@ python3 ~/.config/lyta-shield/lyta_shield.py --check "echo foo | base64 -d | bas
 # Scan your shell history
 python3 ~/.config/lyta-shield/lyta_shield.py --batch ~/.zsh_history
 
-# Bypass (only when you are sure)
-LYTA_SHIELD_DISABLE=1 curl -fsSL https://example.com/install.sh | bash
+# Overriding verdicts
+# - SUSPICIOUS commands prompt you to type YES to run anyway.
+# - DANGEROUS commands are blocked with no override. The single-variable
+#   bypass was removed in v1.5.3: to disable the guard entirely, remove
+#   its hook line from ~/.zshrc / ~/.bashrc and start a new shell.
 ```
+
+Note: installing the pip wheel also provides a `lyta-shield` console entry
+point for the terminal classifier (`--check` / `--batch`). It is a different
+interface from `bin/lyta-shield` in a repository checkout. If both are on
+your PATH, confirm which one runs with `command -v lyta-shield`.
 
 ### Optional Codex Security bridge
 
@@ -121,13 +129,18 @@ The userscript auto-activates on all websites. It will:
 ```
 lyta-shield/
 ├── src/
-│   ├── rules.json              # editable rules: blocked, suspicious, safe_installers
+│   ├── rules.json              # editable rules: blocked, suspicious, safe_installers, bounty_spam
 │   ├── rules_engine.py         # shared classification engine
+│   ├── phish_url.py            # phishing-URL host classifier
+│   ├── phish_seed_blocklist.json  # pinned phishing seed blocklist
 │   ├── lyta_shield.py          # terminal CLI
 │   └── lyta_shield_hook.sh     # zsh / bash shell hook
 ├── extensions/
 │   ├── browser/                # Tampermonkey userscript
 │   └── ai-chat/                # AI chat input guard (part of userscript)
+├── integrations/               # Hermes guard, wrapper, Codex bridge
+├── tools/skill_scan/           # skill pre-write scanner + gate
+├── scripts/                    # integrity baseline, signed backups, SBOM
 ├── tests/
 ├── docs/
 │   ├── index.html              # GitHub Pages landing page
@@ -217,9 +230,6 @@ Only do this if you are actively debugging the guard itself.
 ### CI guarantee
 
 The GitHub Actions workflow runs the complete pytest suite and verifies that the wrapper, CLI, and doctor scripts are executable. A missing wrapper or skipped hardening regression is a build failure.
-
-![LYTA Shield guard active](docs/lyta-shield-guard-active.png)
-
 
 ## Real validation
 
